@@ -18,14 +18,14 @@ Note:
 - Using tf.1.2.rc1, and using the newest attention_wrapper and beam_search_decoder code(2017/6/7) since the beam search decoder is not correct in this version, and they have fixed the bug in the master branch.
 - I also tried to run this code on tf1.2.rc1 on windows, but got some strange errors about gather_tree operation.
 
-##TODO
+## TODO
 
 What I will do next:
 
 - [ ] code refactoring, make the code more readable and easy to build new model
 - [ ] test on more dataset
 
-##Reference
+## Reference
 
 Thanks to following resources:
 
