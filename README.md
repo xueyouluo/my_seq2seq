@@ -24,6 +24,8 @@ What I will do next:
 
 - [ ] code refactoring, make the code more readable and easy to build new model
 - [ ] test on more dataset
+- [ ] how to add other features before attention layer
+- [ ] how to add more layer after attention layer
 
 ## Reference
 
