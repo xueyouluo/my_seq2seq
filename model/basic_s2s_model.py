@@ -5,10 +5,8 @@ from __future__ import absolute_import, division, print_function
 import tensorflow as tf
 from tensorflow.python.layers.core import Dense
 import os
-import attention_wrapper
-import beam_search_decoder
 from util import get_optimizer, multi_rnn_cell, single_rnn_cell
-from config import BasicConfig
+from model.config import BasicConfig
 
 
 class BasicS2SModel(object):
@@ -24,7 +22,7 @@ class BasicS2SModel(object):
         
         self.setup_input_placeholders()
         self.setup_embedding()
-        if config.use_bidirection:
+        if self.config.use_bidirection:
             self.setup_bidirection_encoder()
         else:
             self.setup_multilayer_encoder()
@@ -153,33 +151,35 @@ class BasicS2SModel(object):
             memory_length = self.source_length
 
             if self.config.mode == "inference":
-                memory = beam_search_decoder.tile_batch(
+                memory = tf.contrib.seq2seq.tile_batch(
                     memory, self.config.beam_size)
-                memory_length = beam_search_decoder.tile_batch(
-                    memory_length, self.config.batch_size)
+                memory_length = tf.contrib.seq2seq.tile_batch(
+                    memory_length, self.config.beam_size)
 
-            atten_mech = attention_wrapper.BahdanauAttention(
+            atten_mech = tf.contrib.seq2seq.BahdanauAttention(
                 num_units=self.config.attention_size,
                 memory=memory,
                 memory_sequence_length=memory_length
             )
 
-            decode_cell[0] = attention_wrapper.AttentionWrapper(
+            decode_cell[0] = tf.contrib.seq2seq.AttentionWrapper(
                 cell=decode_cell[0],
                 attention_mechanism=atten_mech,
                 attention_layer_size=self.config.attention_size
             )
 
+            batch_size = self.batch_size
             # setup initial state of decoder
             if self.config.mode == "inference":
-                self.batch_size = self.batch_size * self.config.beam_size
-                self.decode_initial_state = beam_search_decoder.tile_batch(
+                batch_size = self.batch_size * self.config.beam_size
+                self.decode_initial_state = tf.contrib.seq2seq.tile_batch(
                     self.decode_initial_state, self.config.beam_size)
+                print(self.decode_initial_state)
             initial_state = [self.decode_initial_state for i in range(
                 self.config.decode_layer_num)]
             # initial state for attention cell
-            attention_cell_state = initial_state[0].zero_state(
-                dtype=tf.float32, batch_size=self.batch_size)
+            attention_cell_state = decode_cell[0].zero_state(
+                dtype=tf.float32, batch_size=batch_size)
             initial_state[0] = attention_cell_state.clone(
                 cell_state=initial_state[0])
             self.initial_state = tuple(initial_state)
@@ -190,7 +190,7 @@ class BasicS2SModel(object):
     def setup_beam_search(self):
         start_tokens = tf.tile(tf.constant(
             [self.config.start_token], dtype=tf.int32), [self.batch_size])
-        bsd = beam_search_decoder.BeamSearchDecoder(
+        bsd = tf.contrib.seq2seq.BeamSearchDecoder(
             cell=self.decode_cell,
             embedding=self.decode_embedding,
             start_tokens=start_tokens,

@@ -2,7 +2,8 @@
 class BasicConfig(object):
 
     mode = "train"
-
+    start_token = 0
+    end_token = 1
     optimizer = "adam"
     learning_rate = 0.001
     learning_rate_decay = 0.95
@@ -21,6 +22,8 @@ class BasicConfig(object):
     use_bidirection = False
     encode_layer_num = 2
 
+    attention_size = 10
+
     decode_cell_type = 'gru'
     decode_cell_size = 256
     decode_layer_num = 2
@@ -34,3 +37,8 @@ class BasicConfig(object):
     max_inference_lenght = 10
 
     checkpoint_dir = "/tmp/basic_s2s/"
+
+    def __repr__(self):
+        arttribute = vars(BasicConfig)
+        arttribute = {k:v for k,v in arttribute.items() if not k.startswith("__")}
+        return str(arttribute)
