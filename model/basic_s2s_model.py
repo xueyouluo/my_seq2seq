@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import tensorflow as tf
 from tensorflow.python.layers.core import Dense
 import os
-from utils.model_util import get_optimizer, multi_rnn_cell, single_rnn_cell, create_attention_mechanism
+from utils.model_util import get_optimizer, multi_rnn_cell, single_rnn_cell, create_attention_mechanism, create_emb_for_encoder_and_decoder, get_cell_list
 from model.config import BasicConfig
 
 
@@ -19,7 +19,7 @@ class BasicS2SModel(object):
 
     def build(self):
         self.global_step = tf.Variable(0, trainable=False)
-        
+
         self.setup_input_placeholders()
         self.setup_embedding()
         if self.config.use_bidirection:
@@ -30,9 +30,8 @@ class BasicS2SModel(object):
         if self.train_phase:
             self.setup_training_decode_layer()
             self.setup_train()
-            self.setup_summary()        
+            self.setup_summary()
         else:
-            #self.setup_inference_decoder_layer()
             self.setup_beam_search()
         self.setup_saver()
 
@@ -41,10 +40,13 @@ class BasicS2SModel(object):
 
     def setup_train(self):
         if self.config.exponential_decay:
-            self.learning_rate = tf.train.exponential_decay(self.config.learning_rate, self.global_step,self.config.decay_steps, self.config.learning_rate_decay, staircase=True)
+            self.learning_rate = tf.train.exponential_decay(
+                self.config.learning_rate, self.global_step, self.config.decay_steps, self.config.learning_rate_decay, staircase=True)
         else:
-            self.learning_rate = tf.Variable(self.config.learning_rate, trainable = False)
-            self.learning_rate_decay_op = self.learning_rate.assign(self.learning_rate*self.config.learning_rate_decay)
+            self.learning_rate = tf.Variable(
+                self.config.learning_rate, trainable=False)
+            self.learning_rate_decay_op = self.learning_rate.assign(
+                self.learning_rate * self.config.learning_rate_decay)
 
         opt = get_optimizer(self.config.optimizer)(self.learning_rate)
         params = tf.trainable_variables()
@@ -55,9 +57,10 @@ class BasicS2SModel(object):
         self.param_norm = tf.global_norm(params)
         self.updates = opt.apply_gradients(
             zip(clipped_gradients, params), global_step=self.global_step)
-            
+
     def setup_summary(self):
-        self.summary_writer = tf.summary.FileWriter(self.config.checkpoint_dir, self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter(
+            self.config.checkpoint_dir, self.sess.graph)
         tf.summary.scalar("train_loss", self.losses)
         tf.summary.scalar("learning_rate", self.learning_rate)
         self.summary_op = tf.summary.merge_all()
@@ -65,29 +68,24 @@ class BasicS2SModel(object):
     def setup_saver(self):
         self.saver = tf.train.Saver(tf.global_variables())
 
-    def restore_model(self,epoch = None):
+    def restore_model(self, epoch=None):
         if epoch is None:
-            self.saver.restore(self.sess,tf.train.latest_checkpoint(self.config.checkpoint_dir))
+            self.saver.restore(self.sess, tf.train.latest_checkpoint(
+                self.config.checkpoint_dir))
         else:
-            self.saver.restore(self.sess,self.config.checkpoint_dir+ "model.ckpt" + ("-%d"%epoch))
+            self.saver.restore(
+                self.sess, self.config.checkpoint_dir + "model.ckpt" + ("-%d" % epoch))
         print("restored model")
-    
-    def save_model(self,epoch=None):
+
+    def save_model(self, epoch=None):
         if epoch is None:
-            self.saver.save(self.sess,self.config.checkpoint_dir + "model.ckpt",global_step=self.global_step)
+            self.saver.save(self.sess, self.config.checkpoint_dir +
+                            "model.ckpt", global_step=self.global_step)
         else:
-            self.saver.save(self.sess,self.config.checkpoint_dir + "model.ckpt",global_step=epoch)
-        
+            self.saver.save(self.sess, self.config.checkpoint_dir +
+                            "model.ckpt", global_step=epoch)
+
     def setup_input_placeholders(self):
-        # if we use beam search decoder, we need to specify the batch size and max source len
-        # this is a bug I think, and tf will fix this in the future
-        #if self.config.mode == "inference":
-        #    self.batch_size = self.config.batch_size
-        #    self.source_tokens = tf.placeholder(
-        #        tf.int32, shape=[self.batch_size, self.config.max_source_len])
-        #    self.source_length = tf.placeholder(
-        #        tf.int32, shape=[self.batch_size, ])
-        #else:
         self.source_tokens = tf.placeholder(tf.int32, shape=[None, None])
         self.source_length = tf.placeholder(tf.int32, shape=[None, ])
         # using dynamic batch size
@@ -97,32 +95,30 @@ class BasicS2SModel(object):
             # the train data should pad with eos
             self.target_tokens = tf.placeholder(tf.int32, shape=[None, None])
             self.target_length = tf.placeholder(tf.int32, shape=[None, ])
-            
+
             decoder_start_token = tf.ones(
                 shape=[self.batch_size, 1], dtype=tf.int32) * self.config.start_token
             decoder_end_token = tf.ones(
-                shape=[self.batch_size, 1], dtype=tf.int32) * self.config.end_token  
-                
+                shape=[self.batch_size, 1], dtype=tf.int32) * self.config.end_token
+
             # decoder_inputs: [batch_size , max_time_steps + 1]
             # insert _GO symbol in front of each decoder input
             self.decoder_inputs = tf.concat([decoder_start_token,
-                                                  self.target_tokens], axis=1)
-                                                  
+                                             self.target_tokens], axis=1)
+
             # decoder_inputs_length: [batch_size]
             self.decoder_inputs_length = self.target_length + 1
-            
+
             # decoder_targets: [batch_size, max_time_steps + 1]
             # insert EOS symbol at the end of each decoder input
             self.decoder_targets = tf.concat([self.target_tokens,
-                                                   decoder_end_token], axis=1)
+                                              decoder_end_token], axis=1)
 
     def setup_embedding(self):
         with tf.variable_scope("Embedding"):
             with tf.device('/cpu:0'):
-                self.encode_embedding = tf.get_variable("encode_embedding", [
-                                                        self.config.vocab_size, self.config.embedding_size], dtype=tf.float32, initializer=tf.random_uniform_initializer(-1, 1))
-                self.decode_embedding = tf.get_variable("decode_embedding", [
-                                                        self.config.vocab_size, self.config.embedding_size], dtype=tf.float32, initializer=tf.random_uniform_initializer(-1, 1))
+                self.encode_embedding, self.decode_embedding = create_emb_for_encoder_and_decoder(
+                    self.config.share_vocab, self.config.src_vocab_size, self.config.tgt_vocab_size, self.config.embedding_size, self.config.embedding_size)
             self.encode_inputs = tf.nn.embedding_lookup(
                 self.encode_embedding, self.source_tokens)
             if self.train_phase:
@@ -133,7 +129,7 @@ class BasicS2SModel(object):
         with tf.variable_scope("Encoder"):
             encode_cell = multi_rnn_cell(self.config.encode_cell_type, self.config.num_units,
                                          self.config.encode_layer_num, self.train_phase,
-                                         self.config.keep_prob)
+                                         self.config.keep_prob, 0, self.config.num_gpus)
             outputs, states = tf.nn.dynamic_rnn(
                 encode_cell, inputs=self.encode_inputs, sequence_length=self.source_length, dtype=tf.float32)
         self.encode_output = outputs
@@ -141,11 +137,13 @@ class BasicS2SModel(object):
         self.decode_initial_state = states[-1]
 
     def setup_bidirection_encoder(self):
+        num_bi_layers = int(self.config.encode_layer_num / 2)
+
         with tf.variable_scope("Encoder"):
-            fw_cell = single_rnn_cell(self.config.encode_cell_type, self.config.num_units,
-                                      train_phase=self.train_phase, keep_prob=self.config.keep_prob)
-            bw_cell = single_rnn_cell(self.config.encode_cell_type, self.config.num_units,
-                                      train_phase=self.train_phase, keep_prob=self.config.keep_prob)
+            fw_cell = multi_rnn_cell(self.config.encode_cell_type, self.config.num_units,
+                                     num_bi_layers, self.train_phase, self.config.keep_prob, 0, self.config.num_gpus)
+            bw_cell = multi_rnn_cell(self.config.encode_cell_type, self.config.num_units, num_bi_layers,
+                                     self.train_phase, self.config.keep_prob, 0, self.config.num_gpus, num_bi_layers)
 
             outputs, states = tf.nn.bidirectional_dynamic_rnn(
                 cell_fw=fw_cell,
@@ -168,8 +166,8 @@ class BasicS2SModel(object):
     def setup_attention_decoder(self):
         with tf.variable_scope("Decoder"):
             # multi-layer decoder
-            decode_cell = [single_rnn_cell(self.config.decode_cell_type, self.config.num_units,
-                                           self.train_phase, self.config.keep_prob) for i in range(self.config.decode_layer_num)]
+            decode_cell = get_cell_list(self.config.decode_cell_type, self.config.num_units,
+                                        self.config.decode_layer_num, 0, self.train_phase, self.config.num_gpus, 0, self.config.keep_prob)
 
             memory = self.encode_output
             memory_length = self.source_length
@@ -180,7 +178,8 @@ class BasicS2SModel(object):
                 memory_length = tf.contrib.seq2seq.tile_batch(
                     memory_length, self.config.beam_size)
 
-            atten_mech = create_attention_mechanism(self.config.attention_option,self.config.num_units,memory,memory_length)
+            atten_mech = create_attention_mechanism(
+                self.config.attention_option, self.config.num_units, memory, memory_length)
 
             decode_cell[0] = tf.contrib.seq2seq.AttentionWrapper(
                 cell=decode_cell[0],
@@ -204,7 +203,7 @@ class BasicS2SModel(object):
             self.initial_state = tuple(initial_state)
             self.decode_cell = tf.contrib.rnn.MultiRNNCell(decode_cell)
             self.output_layer = Dense(
-                self.config.vocab_size, kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
+                self.config.tgt_vocab_size, kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
 
     def setup_beam_search(self):
         start_tokens = tf.fill([self.batch_size], self.config.start_token)
@@ -230,7 +229,8 @@ class BasicS2SModel(object):
         self.beam_predictions = tf.transpose(beam_predictions, perm=[0, 2, 1])
 
     def setup_training_decode_layer(self):
-        max_dec_len = tf.reduce_max(self.decoder_inputs_length, name="max_dec_len")
+        max_dec_len = tf.reduce_max(
+            self.decoder_inputs_length, name="max_dec_len")
         training_helper = tf.contrib.seq2seq.TrainingHelper(
             self.decoder_inputs,
             self.decoder_inputs_length
@@ -256,36 +256,42 @@ class BasicS2SModel(object):
 
         # targets: [batch_size x max_dec_len]
         # this is important, because we may have padded endings
-        targets = tf.slice(self.decoder_targets, [0, 0], [-1, max_dec_len], 'targets')
+        targets = tf.slice(self.decoder_targets, [
+                           0, 0], [-1, max_dec_len], 'targets')
 
-        self.losses = tf.contrib.seq2seq.sequence_loss(
-            logits=logits, targets=targets, weights=masks, name="losses",average_across_timesteps=True,average_across_batch=True,)
-
+        # self.losses = tf.contrib.seq2seq.sequence_loss(
+        #    logits=logits, targets=targets, weights=masks, name="losses", average_across_timesteps=True, average_across_batch=True,)
+        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            labels=targets, logits=logits)
+        self.losses = tf.reduce_sum(
+            crossent * masks) / tf.to_float(self.batch_size)
         # prediction sample for validation
         self.valid_predictions = tf.identity(
             train_dec_outputs.sample_id, name='valid_preds')
 
-    def train_one_batch(self,source_tokens,source_length,target_tokens,target_length):
+    def train_one_batch(self, source_tokens, source_length, target_tokens, target_length):
         feed_dict = {}
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.target_tokens] = target_tokens
         feed_dict[self.target_length] = target_length
-        losses,_ = self.sess.run([self.losses,self.updates],feed_dict=feed_dict)
+        losses, _ = self.sess.run(
+            [self.losses, self.updates], feed_dict=feed_dict)
         return losses
 
-    def eval_one_batch(self,source_tokens,source_length,target_tokens,target_length):
+    def eval_one_batch(self, source_tokens, source_length, target_tokens, target_length):
         feed_dict = {}
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.target_tokens] = target_tokens
         feed_dict[self.target_length] = target_length
-        predicted_ids,losses = self.sess.run([self.valid_predictions,self.losses],feed_dict = feed_dict)
-        return predicted_ids,losses
+        predicted_ids, losses = self.sess.run(
+            [self.valid_predictions, self.losses], feed_dict=feed_dict)
+        return predicted_ids, losses
 
-    def inference(self,source_tokens,source_length):
+    def inference(self, source_tokens, source_length):
         feed_dict = {}
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
-        predictions = self.sess.run(self.beam_predictions,feed_dict=feed_dict)
+        predictions = self.sess.run(self.beam_predictions, feed_dict=feed_dict)
         return predictions

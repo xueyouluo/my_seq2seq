@@ -63,7 +63,8 @@ if __name__ == "__main__":
         config = BasicConfig()
         config.start_token = SOS_ID
         config.end_token = EOS_ID
-        config.vocab_size = len(w2i)
+        config.src_vocab_size = len(w2i)
+        config.tgt_vocab_size = len(w2i)
         config.exponential_decay = True
         config.embedding_size = 100
         pickle.dump(config,open(config.checkpoint_dir + "config.pkl",'wb'))

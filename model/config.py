@@ -1,5 +1,6 @@
 
 class BasicConfig(object):
+    num_gpus = 1
 
     mode = "train"
     start_token = 0
@@ -14,7 +15,10 @@ class BasicConfig(object):
     max_gradient_norm = 5.0
     keep_prob = 0.80
 
-    vocab_size = 1000
+    # embedding setting
+    share_vocab = False
+    src_vocab_size = 1000
+    tgt_vocab_size = 1000
     embedding_size = 256
     
     # dim size for encoder, decoder and attention
