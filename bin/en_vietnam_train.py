@@ -35,7 +35,7 @@ if __name__ == "__main__":
     config.decode_cell_type = 'gru'
     config.batch_size = 64
     config.attention_option = "scaled_luong"
-    config.checkpoint_dir = "/tmp/envi_nmt"
+    config.checkpoint_dir = "/tmp/envi_nmt/"
     # test with 2 gpus, set to 1 if you only have 1 gpu
     config.num_gpus = 2
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
         global_step = model.global_step.eval(session=sess)
         steps_per_stats = 100
-        num_train_steps = 12000
+        num_train_steps = 24000
         while global_step < num_train_steps:
             start_time = time.time()
             try:

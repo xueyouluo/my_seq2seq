@@ -8,7 +8,6 @@ import os
 from utils.model_util import get_optimizer, multi_rnn_cell, single_rnn_cell, create_attention_mechanism, create_emb_for_encoder_and_decoder, get_cell_list
 from model.config import BasicConfig
 
-
 class BasicS2SModel(object):
     def __init__(self, sess, config=BasicConfig()):
         assert config.mode in ["train", "eval", "inference"]
@@ -79,11 +78,11 @@ class BasicS2SModel(object):
 
     def save_model(self, epoch=None):
         if epoch is None:
-            self.saver.save(self.sess, self.config.checkpoint_dir +
-                            "model.ckpt", global_step=self.global_step)
+            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir +
+                            "model.ckpt"), global_step=self.global_step)
         else:
-            self.saver.save(self.sess, self.config.checkpoint_dir +
-                            "model.ckpt", global_step=epoch)
+            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir +
+                            "model.ckpt"), global_step=epoch)
 
     def setup_input_placeholders(self):
         self.source_tokens = tf.placeholder(tf.int32, shape=[None, None])
