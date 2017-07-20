@@ -1,19 +1,23 @@
 
 class BasicConfig(object):
-    num_gpus = 1
-
+    # Training settings
     mode = "train"
-    start_token = 0
-    end_token = 1
+    num_gpus = 1    
     optimizer = "adam"
     learning_rate = 0.001
     learning_rate_decay = 0.95
     exponential_decay = False
-    # only used when exponential_decay is True
-    decay_steps = 10000
-
+    decay_steps = 10000 # only used when exponential_decay is True
     max_gradient_norm = 5.0
-    keep_prob = 0.80
+
+    # input data setting
+    source_max_len = 50
+    target_max_len = 50
+
+    # vocab settings
+    start_token = 0
+    end_token = 1
+    reverse_source = True
 
     # embedding setting
     share_vocab = False
@@ -21,21 +25,26 @@ class BasicConfig(object):
     tgt_vocab_size = 1000
     embedding_size = 256
     
-    # dim size for encoder, decoder and attention
+    # settings for encoder, decoder and attention
+    keep_prob = 0.80    
     num_units = 128
+    
+    # encoder
     encode_cell_type = 'gru'
     use_bidirection = False
     encode_layer_num = 2
 
+    # decoder
     decode_cell_type = 'gru'
     decode_layer_num = 2
 
     attention_option = "bahdanau" # Bahdanau or Luong
 
+    # inference
     # These settings are used for beam search
     # beam size = 1 will use greedy search
     beam_size = 5
-    # only useful for beam search
+    # input data batch size
     batch_size = 32
     max_inference_length = 10
 

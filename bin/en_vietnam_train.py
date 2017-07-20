@@ -1,15 +1,15 @@
-import os
-import time
 import math
+import os
 import pickle
+import time
 
 import tensorflow as tf
 from tensorflow.python.ops import lookup_ops
 
 from model.config import BasicConfig
 from model.s2s_model_with_data_pipeline import S2SModelWithPipeline
-from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID, create_vocab,
-                             get_train_iterator)
+from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID,
+                             create_vocab, get_train_iterator)
 
 if __name__ == "__main__":
     # before running this training script, download the training data to /tmp/nmt_data
@@ -37,6 +37,7 @@ if __name__ == "__main__":
     config.attention_option = "scaled_luong"
     config.checkpoint_dir = "/tmp/envi_nmt/"
     config.exponential_decay = True
+    config.reverse_source = True
     # test with 2 gpus, set to 1 if you only have 1 gpu
     config.num_gpus = 2
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
             batch_size=config.batch_size,
             sos=SOS,
             eos=EOS,
-            source_reverse=True,
+            source_reverse=config.reverse_source,
             random_seed=201,
             num_buckets=5,
             src_max_len=50,
