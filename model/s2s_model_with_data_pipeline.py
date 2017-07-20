@@ -31,4 +31,6 @@ class S2SModelWithPipeline(BasicS2SModel):
         self.sess.run(tf.tables_initializer())
 
     def train_one_batch(self):
-        return self.sess.run([self.updates,self.losses,self.predict_count,self.global_step,self.batch_size])
+        _,loss,predict_count,global_step,batch_size,summary = self.sess.run([self.updates,self.losses,self.predict_count,self.global_step,self.batch_size,self.summary_op])
+        self.summary_writer.add_summary(summary, global_step)
+        return loss,predict_count,global_step,batch_size

@@ -274,8 +274,9 @@ class BasicS2SModel(object):
         feed_dict[self.source_length] = source_length
         feed_dict[self.target_tokens] = target_tokens
         feed_dict[self.target_length] = target_length
-        losses, _ = self.sess.run(
-            [self.losses, self.updates], feed_dict=feed_dict)
+        losses, summary, global_step, _ = self.sess.run(
+            [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
+        self.summary_writer.add_summary(summary, global_step)
         return losses
 
     def eval_one_batch(self, source_tokens, source_length, target_tokens, target_length):

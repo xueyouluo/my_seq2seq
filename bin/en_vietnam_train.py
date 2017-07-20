@@ -36,6 +36,7 @@ if __name__ == "__main__":
     config.batch_size = 64
     config.attention_option = "scaled_luong"
     config.checkpoint_dir = "/tmp/envi_nmt/"
+    config.exponential_decay = True
     # test with 2 gpus, set to 1 if you only have 1 gpu
     config.num_gpus = 2
 
@@ -91,7 +92,7 @@ if __name__ == "__main__":
             start_time = time.time()
             try:
                 step_result = model.train_one_batch()
-                (_, step_loss, step_predict_count, global_step, batch_size) = step_result
+                (step_loss, step_predict_count, global_step, batch_size) = step_result
             except tf.errors.OutOfRangeError:
                 # Finished going through the training dataset.  Go to next epoch.
                 print("# Finished an epoch, step %d. Perform external evaluation" % global_step)
