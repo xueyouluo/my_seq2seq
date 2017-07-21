@@ -1,13 +1,32 @@
 # -*- coding: utf-8 -*-
 import os
 import pickle
+import numpy as np
 
 import tensorflow as tf
 from tensorflow.python.ops import lookup_ops
 
 from model.s2s_model_with_data_pipeline import S2SModelWithPipeline
 from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID,
-                             create_vocab, get_infer_iterator)
+                             read_vocab, get_infer_iterator)
+
+def tokeninze_sentence(sentence, src_w2i, src_max_len = None, reverse_source = False):
+    sentence_ids = list(map(lambda x:src_w2i.get(x,UNK_ID), sentence.split(" ")))
+    if src_max_len:
+        sentence_ids = sentence_ids[:src_max_len]
+    if reverse_source:
+        sentence_ids = list(reversed(sentence_ids))
+    sentence_ids = np.reshape(sentence_ids, [-1,len(sentence_ids)])
+    sentence_length = np.reshape(sentence_ids.shape[1],[-1])
+    return sentence_ids, sentence_length
+    
+def ids_to_sentences(sentence_ids, tgt_i2w):
+    sentence = []
+    for idx in sentence_ids:
+        if idx == EOS_ID:
+            break
+        sentence.append(tgt_i2w.get(idx,UNK))
+    return " ".join(sentence)
 
 if __name__ == "__main__":
 
@@ -22,30 +41,11 @@ if __name__ == "__main__":
     config.mode = "inference"
     config.max_inference_length = 20
     with tf.Session() as sess:
-        src_vocab_table = lookup_ops.index_table_from_file(
-            src_vocab_file, default_value=UNK_ID)
-        tgt_vocab_table = lookup_ops.index_table_from_file(
-            tgt_vocab_file, default_value=UNK_ID)
 
-        reverse_tgt_vocab_table = lookup_ops.index_to_string_table_from_file(
-            tgt_vocab_file, default_value=UNK)
+        src_w2i, src_i2w = read_vocab(src_vocab_file)
+        tgt_w2i, tgt_i2w = read_vocab(tgt_vocab_file)
 
-        infer_src_placeholder = tf.placeholder(shape=[None], dtype=tf.string)
-        infer_batch_size_placeholder = tf.constant(1, dtype=tf.int64)
-
-        infer_src_dataset = tf.contrib.data.Dataset.from_tensor_slices(
-            infer_src_placeholder)
-        infer_iterator = get_infer_iterator(
-            infer_src_dataset,
-            src_vocab_table,
-            batch_size=infer_batch_size_placeholder,
-            eos=EOS,
-            source_reverse=config.reverse_source,
-            src_max_len=config.source_max_len)
-
-        model = S2SModelWithPipeline(sess, infer_iterator, config)
-        prediction_tokens = reverse_tgt_vocab_table.lookup(
-            tf.to_int64(model.beam_predictions))
+        model = S2SModelWithPipeline(sess, None, config)
         model.init()
         model.restore_model()
 
@@ -56,16 +56,13 @@ if __name__ == "__main__":
                     break
             except:
                 pass
-
-            feed_dict = {infer_src_placeholder: [raw]}
-            # this is hard for exporting for serving, so the better choice is use placeholders instead of infer iterator
-            sess.run(infer_iterator.initializer, feed_dict=feed_dict)
-
-            predictions = sess.run(prediction_tokens)
+            
+            sentence_ids, sentence_length = tokeninze_sentence(raw,src_w2i,reverse_source = config.reverse_source)
+            predictions = model.inference(sentence_ids,sentence_length)
             print("Predictions:")
             # showing wierd charactors on my screen, but showing correctly when I copied them here.
             for p in predictions[0]:
-                print(" ".join(p))
+                print(ids_to_sentences(p,tgt_i2w))
 
             # examples:
             # some translations are ok. The repeat problem is a common problem of s2s.

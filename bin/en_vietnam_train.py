@@ -9,7 +9,7 @@ from tensorflow.python.ops import lookup_ops
 from model.config import BasicConfig
 from model.s2s_model_with_data_pipeline import S2SModelWithPipeline
 from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID,
-                             create_vocab, get_train_iterator)
+                             create_vocab, get_train_iterator, read_vocab)
 
 if __name__ == "__main__":
     # before running this training script, download the training data to /tmp/nmt_data
@@ -22,8 +22,8 @@ if __name__ == "__main__":
     train_tgt_file = os.path.join(data_dir,"train.vi")
 
     config = BasicConfig()
-    src_w2i,_,_ = create_vocab(src_vocab_file)
-    tgt_w2i,_,_ = create_vocab(tgt_vocab_file)
+    src_w2i,_ = read_vocab(src_vocab_file)
+    tgt_w2i,_ = read_vocab(tgt_vocab_file)
 
     config.src_vocab_size = len(src_w2i)
     config.tgt_vocab_size = len(tgt_w2i)

@@ -43,6 +43,29 @@ def create_vocab(filename, delimiter=" ", min_count=0):
     return word2id, id2word, words
 
 
+def read_vocab(vocab_file):
+    """read vocab from file, one word per line
+    """
+    vocab = []
+    with codecs.getreader("utf-8")(tf.gfile.GFile(vocab_file, "rb")) as f:
+      vocab_size = 0
+      for word in f:
+        vocab_size += 1
+        vocab.append(word.strip())
+    
+    if vocab[0] != UNK or vocab[1] != SOS or vocab[2] != EOS:
+        print("The first 3 vocab words [%s, %s, %s]"
+                    " are not [%s, %s, %s]" %
+                    (vocab[0], vocab[1], vocab[2], UNK, SOS, EOS))
+        vocab = [UNK, SOS, EOS] + vocab
+        vocab_size += 3
+    
+    word2id = {}
+    for word in vocab:
+        word2id[word] = len(word2id)
+    id2word = {i: w for w, i in word2id.items()}
+    return word2id,id2word    
+
 def get_infer_iterator(
         src_dataset, src_vocab_table, batch_size,
         source_reverse, eos, src_max_len=None):
