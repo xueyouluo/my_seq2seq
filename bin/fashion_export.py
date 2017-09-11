@@ -34,6 +34,7 @@ def main(_argv):
             open(os.path.join(FLAGS.model_dir, "config.pkl"), 'rb'))
         config.mode = "inference"
         config.max_inference_length = FLAGS.inference_length
+        config.beam_size = 10
 
         model = S2SModelWithPipeline(sess, None, config)
         model.init()
@@ -43,9 +44,10 @@ def main(_argv):
         builder = saved_model_builder.SavedModelBuilder(export_path)
         prediction_input_tokens = utils.build_tensor_info(model.source_tokens)
         prediction_input_length = utils.build_tensor_info(model.source_length)
+        prediction_preditons = utils.build_tensor_info(model.beam_predictions)
         prediction_signature = signature_def_utils.build_signature_def(
-            inputs={'query': prediction_input_tokens},
-            outputs={'query_length': prediction_input_length},
+            inputs={'query': prediction_input_tokens, 'query_length': prediction_input_length},
+            outputs={"preditions": prediction_preditons},
             method_name=signature_constants.PREDICT_METHOD_NAME)
 
         legacy_init_op = tf.group(
