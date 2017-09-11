@@ -13,11 +13,11 @@ from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID,
 
 if __name__ == "__main__":
 
-    data_dir = "/data/xueyou/fashion"
-    src_vocab_file = os.path.join(data_dir,"vocab.txt")
-    tgt_vocab_file = os.path.join(data_dir,"vocab.txt")
-    train_src_file = os.path.join(data_dir,"source.txt")
-    train_tgt_file = os.path.join(data_dir,"target.txt")
+    data_dir = "/data/xueyou/fashion/0909"
+    src_vocab_file = os.path.join(data_dir,"vocab.0909.txt")
+    tgt_vocab_file = os.path.join(data_dir,"vocab.0909.txt")
+    train_src_file = os.path.join(data_dir,"source.0909.txt")
+    train_tgt_file = os.path.join(data_dir,"target.0909.txt")
 
     config = BasicConfig()
     src_w2i, src_i2w = read_vocab(src_vocab_file)
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     config.decode_cell_type = 'gru'
     config.batch_size = 64
     config.attention_option = "scaled_luong"
-    config.checkpoint_dir = "/tmp/fashion_s2s/"
+    config.checkpoint_dir = "/data/xueyou/fashion/fashion_s2s_0909"
     config.exponential_decay = True
     config.reverse_source = True
     # test with 2 gpus, set to 1 if you only have 1 gpu
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             })
 
         global_step = model.global_step.eval(session=sess)
-        steps_per_stats = 50
+        steps_per_stats = 100
         num_train_steps = 24000
         while global_step < num_train_steps:
             start_time = time.time()
