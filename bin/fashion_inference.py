@@ -34,11 +34,13 @@ if __name__ == "__main__":
     data_dir = "/data/xueyou/fashion/0909/"
 
     vocab_file = os.path.join(data_dir, "vocab.0909.txt")
-
+    
     config = pickle.load(
         open(os.path.join(checkpoint_dir, "config.pkl"), 'rb'))
     config.mode = "inference"
     config.max_inference_length = 60
+    config.beam_size = 10
+
     with tf.Session() as sess:
 
         src_w2i, src_i2w = read_vocab(vocab_file)
