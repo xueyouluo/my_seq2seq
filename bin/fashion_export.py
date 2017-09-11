@@ -5,7 +5,6 @@ import pickle
 import numpy as np
 
 import tensorflow as tf
-from tensorflow.python.ops import lookup_ops
 
 from model.s2s_model_with_data_pipeline import S2SModelWithPipeline
 from tensorflow.python.saved_model import builder as saved_model_builder
@@ -60,7 +59,8 @@ def main(_argv):
                 signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
                 prediction_signature,
             },
-            legacy_init_op=legacy_init_op)
+            legacy_init_op=legacy_init_op,
+            clear_devices=True)
 
         builder.save()
 
