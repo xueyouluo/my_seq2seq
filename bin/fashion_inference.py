@@ -30,10 +30,10 @@ def ids_to_sentences(sentence_ids, tgt_i2w):
 
 if __name__ == "__main__":
 
-    checkpoint_dir = "/tmp/fashion_s2s/"
-    data_dir = "/data/xueyou/fashion"
+    checkpoint_dir = "/data/xueyou/fashion/fashion_s2s_0909/"
+    data_dir = "/data/xueyou/fashion/0909/"
 
-    vocab_file = os.path.join(data_dir, "vocab.txt")
+    vocab_file = os.path.join(data_dir, "vocab.0909.txt")
 
     config = pickle.load(
         open(os.path.join(checkpoint_dir, "config.pkl"), 'rb'))

@@ -73,15 +73,15 @@ class BasicS2SModel(object):
                 self.config.checkpoint_dir))
         else:
             self.saver.restore(
-                self.sess, self.config.checkpoint_dir + "model.ckpt" + ("-%d" % epoch))
+                self.sess, os.path.join(self.config.checkpoint_dir, "model.ckpt" + ("-%d" % epoch)))
         print("restored model")
 
     def save_model(self, epoch=None):
         if epoch is None:
-            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir +
+            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir,
                             "model.ckpt"), global_step=self.global_step)
         else:
-            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir +
+            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir,
                             "model.ckpt"), global_step=epoch)
 
     def setup_input_placeholders(self):
