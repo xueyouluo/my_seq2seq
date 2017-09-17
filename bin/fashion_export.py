@@ -16,7 +16,7 @@ from tensorflow.contrib.session_bundle import exporter
 
 tf.flags.DEFINE_string("model_dir", None, "directory to load model from")
 tf.flags.DEFINE_string("export", None, "export path")
-tf.flags.DEFINE_integer("inference_length", 60, "max inference length")
+tf.flags.DEFINE_integer("inference_length", 100, "max inference length")
 FLAGS = tf.flags.FLAGS
 
 
@@ -46,7 +46,7 @@ def main(_argv):
         prediction_preditons = utils.build_tensor_info(model.beam_predictions)
         prediction_signature = signature_def_utils.build_signature_def(
             inputs={'query': prediction_input_tokens, 'query_length': prediction_input_length},
-            outputs={"preditions": prediction_preditons},
+            outputs={"predictions": prediction_preditons},
             method_name=signature_constants.PREDICT_METHOD_NAME)
 
         legacy_init_op = tf.group(
