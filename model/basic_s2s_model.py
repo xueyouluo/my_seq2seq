@@ -49,7 +49,7 @@ class BasicS2SModel(object):
 
         opt = get_optimizer(self.config.optimizer)(self.learning_rate)
         params = tf.trainable_variables()
-        gradients = tf.gradients(self.losses, params)
+        gradients = tf.gradients(self.losses, params, colocate_gradients_with_ops=self.config.colocate_gradients_with_ops)
         clipped_gradients, _ = tf.clip_by_global_norm(
             gradients, self.config.max_gradient_norm)
         self.gradient_norm = tf.global_norm(gradients)

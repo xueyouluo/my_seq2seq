@@ -112,8 +112,8 @@ def get_infer_iterator(
 def get_train_iterator(
         src_dataset, tgt_dataset, src_vocab_table, tgt_vocab_table,
         batch_size,  sos, eos, source_reverse, random_seed, num_buckets,
-        src_max_len=None, tgt_max_len=None, num_threads=4, output_buffer_size=None,
-        skip_count=None):
+        src_max_len=None, tgt_max_len=None, src_min_len=0, tgt_min_len=0,
+        num_threads=4, output_buffer_size=None, skip_count=None):
     if not output_buffer_size:
         output_buffer_size = batch_size * 1000
     src_eos_id = tf.cast(
@@ -142,8 +142,8 @@ def get_train_iterator(
 
     # Filter zero length input sequences.
     src_tgt_dataset = src_tgt_dataset.filter(
-        lambda src, tgt: tf.logical_and(tf.size(src) > 0, tf.size(tgt) > 0))
-
+        lambda src, tgt: tf.logical_and(tf.size(src) > src_min_len, tf.size(tgt) > tgt_min_len))
+        
     if src_max_len:
         src_tgt_dataset = src_tgt_dataset.map(
             lambda src, tgt: (src[:src_max_len], tgt),
