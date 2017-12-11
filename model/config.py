@@ -9,7 +9,8 @@ class BasicConfig(object):
     exponential_decay = False
     decay_steps = 10000 # only used when exponential_decay is True
     max_gradient_norm = 5.0
-
+    colocate_gradients_with_ops = True
+    
     # input data setting
     source_max_len = 50
     target_max_len = 50
