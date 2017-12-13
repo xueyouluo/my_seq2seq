@@ -16,37 +16,41 @@ if __name__ == "__main__":
     data_dir = "/data/xueyou/textsum/txtsum_zh"
     src_vocab_file = os.path.join(data_dir,"vocab.200000.source")
     tgt_vocab_file = os.path.join(data_dir,"vocab.200000.target")
-    train_src_file = os.path.join(data_dir,"train.tokenize.lower.1211.source")
-    train_tgt_file = os.path.join(data_dir,"train.tokenize.lower.1211.target")
+    train_src_file = os.path.join(data_dir,"train.tokenize.lower.1211.shuffle.source")
+    train_tgt_file = os.path.join(data_dir,"train.tokenize.lower.1211.shuffle.target")
 
     config = BasicConfig()
     src_w2i, src_i2w = read_vocab(src_vocab_file)
     tgt_w2i, tgt_i2w = read_vocab(tgt_vocab_file)
 
-    checkpoint_dir = "/data/xueyou/textsum/txtsum_zh/txtsum_s2s_v200000_1211"
+    checkpoint_dir = "/data/xueyou/textsum/txtsum_zh/txtsum_s2s_v200000_1213_sgd"
     if not os.path.isdir(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
     if os.path.exists(os.path.join(checkpoint_dir,"config.pkl")):
         config = pickle.load(open(os.path.join(checkpoint_dir,"config.pkl"),'rb'))
         restore = True
-        # since nan, smaller the learning rate
-        config.learning_rate = 0.0001
-        pickle.dump(config,open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
     else:
         config.src_vocab_size = len(src_w2i)
+        config.src_vocab_file = src_vocab_file
         config.tgt_vocab_size = len(tgt_w2i)
+        config.tgt_vocab_file = tgt_vocab_file
+        config.src_max_len= 400
+        config.src_min_len= 10
+        config.tgt_max_len= 30
+        config.tgt_min_len= 3
         config.start_token = SOS_ID
         config.end_token = EOS_ID
         config.use_bidirection = True
         config.num_units = 512
         config.encode_cell_type = 'gru'
         config.decode_cell_type = 'gru'
-        config.batch_size = 80
-        config.learning_rate_decay = 0.98
-        config.attention_option = "scaled_luong"
+        config.batch_size = 64
+        config.attention_option = "normed_bahdanau"
         config.checkpoint_dir = checkpoint_dir
-        config.exponential_decay = True
+        config.exponential_decay = False
+        config.optimizer = 'sgd'
+        config.learning_rate = 1.0
         config.reverse_source = False
         # test with 2 gpus, set to 1 if you only have 1 gpu
         config.num_gpus = 2
@@ -72,19 +76,19 @@ if __name__ == "__main__":
             sos=SOS,
             eos=EOS,
             source_reverse=config.reverse_source,
-            random_seed=201,
-            num_buckets=5,
-            src_max_len=400,
-            src_min_len=10,
-            tgt_max_len=30,
-            tgt_min_len=3,
+            random_seed=1213,
+            num_buckets=7,
+            src_max_len=config.src_max_len,
+            src_min_len=config.src_min_len,
+            tgt_max_len=config.tgt_max_len,
+            tgt_min_len=config.tgt_min_len,
             skip_count=train_skip_count_placeholder)
             
         model = S2SModelWithPipeline(sess,train_iterator,config)
         model.init()
         if restore:
             print("restore model")
-            model.restore_model(38000)
+            model.restore_model()
 
         step_time, checkpoint_loss, checkpoint_predict_count = 0.0, 0.0, 0.0
         train_ppl = 0.0
@@ -103,10 +107,10 @@ if __name__ == "__main__":
         
         global_step = model.global_step.eval(session=sess)
 
-        steps_per_stats = 100
-        save_every_step = 1000
+        steps_per_stats = config.steps_per_stats
+        save_every_step = config.save_every_step
         # about 10 epoch
-        num_train_steps = 500000
+        num_train_steps = config.num_train_steps
         while global_step < num_train_steps:
             start_time = time.time()
             try:
@@ -127,10 +131,6 @@ if __name__ == "__main__":
             # debug
             # import pdb; pdb.set_trace()
             
-            import math
-            if math.isnan(step_loss):
-                print('Detected NaN')
-                import pdb; pdb.set_trace()
             print("global-step {0}, step-time {1}, step-loss {2}".format(global_step,time.time()-start_time,step_loss))
             
             if global_step % save_every_step == 0:

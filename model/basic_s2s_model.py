@@ -6,7 +6,10 @@ import tensorflow as tf
 from tensorflow.python.layers.core import Dense
 import os
 from utils.model_util import get_optimizer, multi_rnn_cell, single_rnn_cell, create_attention_mechanism, create_emb_for_encoder_and_decoder, get_cell_list
+from utils.data_util import read_vocab
 from model.config import BasicConfig
+import csv
+from tensorflow.contrib.tensorboard.plugins import projector
 
 class BasicS2SModel(object):
     def __init__(self, sess, config=BasicConfig()):
@@ -37,15 +40,74 @@ class BasicS2SModel(object):
     def init(self):
         self.sess.run(tf.global_variables_initializer())
 
+    def _get_learning_rate_warmup(self):
+        """Get learning rate warmup."""
+        warmup_steps = self.config.warmup_steps
+        print("learning_rate=%g, warmup_steps=%d, warmup_scheme=%s" %
+                        (self.config.learning_rate, warmup_steps, 't2t'))
+
+        # Apply inverse decay if global steps less than warmup steps.
+        # Inspired by https://arxiv.org/pdf/1706.03762.pdf (Section 5.3)
+        # When step < warmup_steps,
+        #   learing_rate *= warmup_factor ** (warmup_steps - step)
+        # 0.01^(1/warmup_steps): we start with a lr, 100 times smaller
+        warmup_factor = tf.exp(tf.log(0.01) / warmup_steps)
+        inv_decay = warmup_factor**(
+            tf.to_float(warmup_steps - self.global_step))
+
+        return tf.cond(
+            self.global_step < warmup_steps,
+            lambda: inv_decay * self.learning_rate,
+            lambda: self.learning_rate,
+            name="learning_rate_warump_cond")
+
+    def _get_learning_rate_decay(self):
+        """Get learning rate decay."""
+        if self.config.decay_scheme == "luong10":
+            start_decay_step = int(self.config.num_train_steps / 2)
+            remain_steps = self.config.num_train_steps - start_decay_step
+            decay_steps = int(remain_steps / 10)  # decay 10 times
+            decay_factor = 0.5
+        elif self.config.decay_scheme == "luong234":
+            start_decay_step = int(self.config.num_train_steps * 2 / 3)
+            remain_steps = self.config.num_train_steps - start_decay_step
+            decay_steps = int(remain_steps / 4)  # decay 4 times
+            decay_factor = 0.5
+        elif not self.config.decay_scheme:  # no decay
+            start_decay_step = self.config.num_train_steps
+            decay_steps = 0
+            decay_factor = 1.0
+        elif self.config.decay_scheme:
+            raise ValueError("Unknown decay scheme %s" % self.config.decay_scheme)
+
+        print("decay_scheme=%s, start_decay_step=%d, decay_steps %d, "
+                        "decay_factor %g" % (self.config.decay_scheme,
+                                            start_decay_step,
+                                            decay_steps,
+                                            decay_factor))
+
+        return tf.cond(
+            self.global_step < start_decay_step,
+            lambda: self.learning_rate,
+            lambda: tf.train.exponential_decay(
+                self.learning_rate,
+                (self.global_step - start_decay_step),
+                decay_steps, decay_factor, staircase=True),
+            name="learning_rate_decay_cond")
+
     def setup_train(self):
         if self.config.exponential_decay:
+            print("set up exponential learning rate decay")
             self.learning_rate = tf.train.exponential_decay(
                 self.config.learning_rate, self.global_step, self.config.decay_steps, self.config.learning_rate_decay, staircase=True)
-        else:
-            self.learning_rate = tf.Variable(
-                self.config.learning_rate, trainable=False)
-            self.learning_rate_decay_op = self.learning_rate.assign(
-                self.learning_rate * self.config.learning_rate_decay)
+        elif self.config.decay_scheme:
+            print("set up conditional learning rate decay")
+            self.learning_rate = tf.constant(self.config.learning_rate)
+             # warm-up
+            self.learning_rate = self._get_learning_rate_warmup()
+            # decay
+            self.learning_rate = self._get_learning_rate_decay()
+
 
         opt = get_optimizer(self.config.optimizer)(self.learning_rate)
         params = tf.trainable_variables()
@@ -62,6 +124,8 @@ class BasicS2SModel(object):
             self.config.checkpoint_dir, self.sess.graph)
         tf.summary.scalar("train_loss", self.losses)
         tf.summary.scalar("learning_rate", self.learning_rate)
+        tf.summary.scalar('gN',self.gradient_norm)
+        tf.summary.scalar('pN',self.param_norm)
         self.summary_op = tf.summary.merge_all()
 
     def setup_saver(self):
@@ -112,12 +176,43 @@ class BasicS2SModel(object):
             # insert EOS symbol at the end of each decoder input
             self.decoder_targets = tf.concat([self.target_tokens,
                                               decoder_end_token], axis=1)
+    def write_metadata(self, fpath, id2word):
+        """Writes metadata file for Tensorboard word embedding visualizer as described here:
+        https://www.tensorflow.org/get_started/embedding_viz
+        Args:
+        fpath: place to write the metadata file
+        """
+        print("Writing word embedding metadata file to {0}...".format(fpath))
+        with open(fpath, "w") as f:
+            fieldnames = ['word']
+            writer = csv.DictWriter(f, delimiter="\t", fieldnames=fieldnames)
+            for i in range(len(id2word)):
+                writer.writerow({"word": id2word[i]})
+                
+    def add_emb_vis(self, embedding_var, vocab_file):
+        """Do setup so that we can view word embedding visualization in Tensorboard, as described here:
+        https://www.tensorflow.org/get_started/embedding_viz
+        Make the vocab metadata file, then make the projector config file pointing to it."""
+        print("add embedding to tensorboard")
+        w2i, i2w = read_vocab(vocab_file)
+        vocab_metadata_path = os.path.join(self.config.checkpoint_dir, "vocab_metadata.tsv")
+        self.write_metadata(vocab_metadata_path, i2w) # write metadata file
+        summary_writer = tf.summary.FileWriter(self.config.checkpoint_dir)
+        config = projector.ProjectorConfig()
+        embedding = config.embeddings.add()
+        embedding.tensor_name = embedding_var.name
+        embedding.metadata_path = vocab_metadata_path
+        projector.visualize_embeddings(summary_writer, config)
 
     def setup_embedding(self):
         with tf.variable_scope("Embedding"):
             with tf.device('/cpu:0'):
                 self.encode_embedding, self.decode_embedding = create_emb_for_encoder_and_decoder(
                     self.config.share_vocab, self.config.src_vocab_size, self.config.tgt_vocab_size, self.config.embedding_size, self.config.embedding_size)
+                # write encode embedding to tensorboard
+                if self.train_phase and self.config.src_vocab_file:
+                    self.add_emb_vis(self.encode_embedding, self.config.src_vocab_file)
+
             self.encode_inputs = tf.nn.embedding_lookup(
                 self.encode_embedding, self.source_tokens)
             if self.train_phase:
@@ -249,7 +344,7 @@ class BasicS2SModel(object):
 
         # logits: [batch_size x max_dec_len x vocab_size]
         logits = tf.identity(train_dec_outputs.rnn_output, name='logits')
-
+        self.logits = logits
         masks = tf.sequence_mask(
             self.decoder_inputs_length, max_dec_len, dtype=tf.float32, name="mask")
 
@@ -257,11 +352,12 @@ class BasicS2SModel(object):
         # this is important, because we may have padded endings
         targets = tf.slice(self.decoder_targets, [
                            0, 0], [-1, max_dec_len], 'targets')
-
+        self.targets = targets
         # self.losses = tf.contrib.seq2seq.sequence_loss(
         #    logits=logits, targets=targets, weights=masks, name="losses", average_across_timesteps=True, average_across_batch=True,)
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=targets, logits=logits)
+        self.crossent = crossent
         self.losses = tf.reduce_sum(
             crossent * masks) / tf.to_float(self.batch_size)
         # prediction sample for validation

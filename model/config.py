@@ -10,11 +10,22 @@ class BasicConfig(object):
     decay_steps = 10000 # only used when exponential_decay is True
     max_gradient_norm = 5.0
     colocate_gradients_with_ops = True
-    
-    # input data setting
-    source_max_len = 50
-    target_max_len = 50
+    warmup_steps = 0
+    num_train_steps = 300000
+    decay_scheme = 'luong10'
+    steps_per_stats = 100
+    save_every_step = 1000
 
+    # vocab
+    src_vocab_file = None
+    tgt_vocab_file = None
+
+    # input data setting
+    src_max_len= 50
+    src_min_len= 0
+    tgt_max_len= 50
+    tgt_min_len= 0
+    
     # vocab settings
     start_token = 0
     end_token = 1
