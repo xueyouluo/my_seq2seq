@@ -49,7 +49,7 @@ class BasicConfig(object):
     # decoder
     decode_cell_type = 'gru'
     decode_layer_num = 2
-
+    length_penalty_weight = 0.0
     attention_option = "bahdanau" # Bahdanau or Luong
 
     # inference

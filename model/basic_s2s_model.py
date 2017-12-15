@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import tensorflow as tf
 from tensorflow.python.layers.core import Dense
 import os
-from utils.model_util import get_optimizer, multi_rnn_cell, single_rnn_cell, create_attention_mechanism, create_emb_for_encoder_and_decoder, get_cell_list
+from utils.model_util import get_optimizer, multi_rnn_cell, single_rnn_cell, create_attention_mechanism, create_emb_for_encoder_and_decoder, get_cell_list, get_device_str
 from utils.data_util import read_vocab
 from model.config import BasicConfig
 import csv
@@ -20,8 +20,10 @@ class BasicS2SModel(object):
         self.build()
 
     def build(self):
+        print("Start to build model")
         self.global_step = tf.Variable(0, trainable=False)
-
+        self.output_layer = Dense(
+                self.config.tgt_vocab_size, kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1), use_bias=False)
         self.setup_input_placeholders()
         self.setup_embedding()
         if self.config.use_bidirection:
@@ -205,6 +207,7 @@ class BasicS2SModel(object):
         projector.visualize_embeddings(summary_writer, config)
 
     def setup_embedding(self):
+        print("set up embeddings")
         with tf.variable_scope("Embedding"):
             with tf.device('/cpu:0'):
                 self.encode_embedding, self.decode_embedding = create_emb_for_encoder_and_decoder(
@@ -231,6 +234,7 @@ class BasicS2SModel(object):
         self.decode_initial_state = states[-1]
 
     def setup_bidirection_encoder(self):
+        print("set up bidirection encoder")
         num_bi_layers = int(self.config.encode_layer_num / 2)
 
         with tf.variable_scope("Encoder"):
@@ -258,6 +262,7 @@ class BasicS2SModel(object):
                 tf.concat(self.encode_state, axis=1))
 
     def setup_attention_decoder(self):
+        print("set up attention decoder")
         with tf.variable_scope("Decoder"):
             # multi-layer decoder
             decode_cell = get_cell_list(self.config.decode_cell_type, self.config.num_units,
@@ -296,10 +301,9 @@ class BasicS2SModel(object):
                 cell_state=initial_state[0])
             self.initial_state = tuple(initial_state)
             self.decode_cell = tf.contrib.rnn.MultiRNNCell(decode_cell)
-            self.output_layer = Dense(
-                self.config.tgt_vocab_size, kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
 
     def setup_beam_search(self):
+        print("set up beam search")
         start_tokens = tf.fill([self.batch_size], self.config.start_token)
         bsd = tf.contrib.seq2seq.BeamSearchDecoder(
             cell=self.decode_cell,
@@ -309,7 +313,7 @@ class BasicS2SModel(object):
             initial_state=self.initial_state,
             beam_width=self.config.beam_size,
             output_layer=self.output_layer,
-            length_penalty_weight=0.0)
+            length_penalty_weight=self.config.length_penalty_weight)
         # final_outputs are instances of FinalBeamSearchDecoderOutput
         final_outputs, final_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(
             bsd,
@@ -323,6 +327,7 @@ class BasicS2SModel(object):
         self.beam_predictions = tf.transpose(beam_predictions, perm=[0, 2, 1])
 
     def setup_training_decode_layer(self):
+        print("set up training decode")
         max_dec_len = tf.reduce_max(
             self.decoder_inputs_length, name="max_dec_len")
         training_helper = tf.contrib.seq2seq.TrainingHelper(
@@ -340,10 +345,14 @@ class BasicS2SModel(object):
             training_decoder,
             output_time_major=False,
             impute_finished=True,
-            maximum_iterations=max_dec_len)
+            maximum_iterations=max_dec_len,
+            swap_memory=True)
 
-        # logits: [batch_size x max_dec_len x vocab_size]
+        #device_id = self.config.decode_layer_num if self.config.decode_layer_num < self.config.num_gpus else (self.config.decode_layer_num - 1)
+        #with tf.device(get_device_str(device_id, self.config.num_gpus)):
+        #logits = self.output_layer(train_dec_outputs.rnn_output)
         logits = tf.identity(train_dec_outputs.rnn_output, name='logits')
+        # logits: [batch_size x max_dec_len x vocab_size]
         self.logits = logits
         masks = tf.sequence_mask(
             self.decoder_inputs_length, max_dec_len, dtype=tf.float32, name="mask")

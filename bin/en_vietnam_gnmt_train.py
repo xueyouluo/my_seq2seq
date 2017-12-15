@@ -7,7 +7,8 @@ import tensorflow as tf
 from tensorflow.python.ops import lookup_ops
 
 from model.config import BasicConfig
-from model.s2s_model_with_data_pipeline import S2SModelWithPipeline
+from model.gnmt_model import GNMTModel
+from utils.model_util import get_config_proto
 from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID,
                              create_vocab, get_train_iterator, read_vocab)
 
@@ -33,18 +34,24 @@ if __name__ == "__main__":
     config.num_units = 512
     config.encode_cell_type = 'gru'
     config.decode_cell_type = 'gru'
-    config.batch_size = 128
+    config.batch_size = 256
     config.attention_option = "scaled_luong"
-    config.checkpoint_dir = "/tmp/envi_nmt/"
+    config.checkpoint_dir = "/tmp/envi_gnmt_test/"
+    config.exponential_decay = True
     config.reverse_source = True
     # test with 2 gpus, set to 1 if you only have 1 gpu
     config.num_gpus = 2
+    config.encode_layer_num = 4
+    config.decode_layer_num = 4
+    config.length_penalty_weight = 1.0
 
     if not os.path.isdir(config.checkpoint_dir):
         os.makedirs(config.checkpoint_dir)
     pickle.dump(config,open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
 
-    with tf.Session() as sess:
+    # When using GNMT model, you should let allow_soft_placement to be True, otherwise you will get colocate 
+    # gradient problem if you set colocate_gradients_with_ops to be True.
+    with tf.Session(config=get_config_proto()) as sess:
         # got error if we use tf.contrib.lookup.index_table_from_file
         src_vocab_table = lookup_ops.index_table_from_file(src_vocab_file, default_value=UNK_ID)
         tgt_vocab_table = lookup_ops.index_table_from_file(tgt_vocab_file, default_value=UNK_ID)
@@ -69,7 +76,7 @@ if __name__ == "__main__":
             tgt_max_len=50,
             skip_count=train_skip_count_placeholder)
             
-        model = S2SModelWithPipeline(sess,train_iterator,config)
+        model = GNMTModel(sess,train_iterator,config)
         model.init()
 
         step_time, checkpoint_loss, checkpoint_predict_count = 0.0, 0.0, 0.0
@@ -86,7 +93,7 @@ if __name__ == "__main__":
             })
 
         global_step = model.global_step.eval(session=sess)
-        steps_per_stats = 100
+        steps_per_stats = 50
         num_train_steps = 24000
         while global_step < num_train_steps:
             start_time = time.time()
