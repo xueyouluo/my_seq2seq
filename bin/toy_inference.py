@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
         while True:
             # since this is a revese sequence, I leave out the tokeninze step, use the word id instead
-            raw = raw_input("Enter list of word ids (id should be less than 23), -1 to exit:")
+            raw = input("Enter list of word ids (id should be less than 23), -1 to exit:")
             try:
                 if int(raw) == -1:
                     break
@@ -23,7 +23,7 @@ if __name__ == "__main__":
                 pass
             
             try:
-                ids = map(int,raw.split(" "))
+                ids = list(map(int,raw.split(" ")))
             except:
                 continue
 

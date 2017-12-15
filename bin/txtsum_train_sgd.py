@@ -16,8 +16,8 @@ if __name__ == "__main__":
     data_dir = "/data/xueyou/textsum/txtsum_zh"
     src_vocab_file = os.path.join(data_dir,"vocab.200000.source")
     tgt_vocab_file = os.path.join(data_dir,"vocab.200000.target")
-    train_src_file = os.path.join(data_dir,"train.tokenize.lower.1211.shuffle.source")
-    train_tgt_file = os.path.join(data_dir,"train.tokenize.lower.1211.shuffle.target")
+    train_src_file = os.path.join(data_dir,"train.tokenize.lower.1214.min100.shuffle.source")
+    train_tgt_file = os.path.join(data_dir,"train.tokenize.lower.1214.min100.shuffle.target")
 
     config = BasicConfig()
     src_w2i, src_i2w = read_vocab(src_vocab_file)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         config.checkpoint_dir = checkpoint_dir
         config.exponential_decay = False
         config.optimizer = 'sgd'
-        config.learning_rate = 1.0
+        config.learning_rate = 0.5
         config.reverse_source = False
         # test with 2 gpus, set to 1 if you only have 1 gpu
         config.num_gpus = 2
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         model.init()
         if restore:
             print("restore model")
-            model.restore_model()
+            model.restore_model(42000)
 
         step_time, checkpoint_loss, checkpoint_predict_count = 0.0, 0.0, 0.0
         train_ppl = 0.0

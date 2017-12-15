@@ -31,7 +31,7 @@ if __name__ == "__main__":
             data[key] = []
             lengths[key] = []
             for line in open(raw_filename):
-                tokenize_list = map(lambda x:w2i.get(x,UNK_ID),line.strip().split(" "))
+                tokenize_list = list(map(lambda x:w2i.get(x,UNK_ID),line.strip().split(" ")))
                 length += len(tokenize_list)
                 cnt += 1
                 data[key].append(tokenize_list)
@@ -67,6 +67,9 @@ if __name__ == "__main__":
         config.tgt_vocab_size = len(w2i)
         config.exponential_decay = True
         config.embedding_size = 100
+        config.batch_size = 64
+        if not os.path.isdir(config.checkpoint_dir):
+            os.makedirs(config.checkpoint_dir)
         pickle.dump(config,open(config.checkpoint_dir + "config.pkl",'wb'))
         
         print("build model")

@@ -16,8 +16,8 @@ if __name__ == "__main__":
     data_dir = "/data/xueyou/textsum/txtsum_zh"
     src_vocab_file = os.path.join(data_dir,"vocab.200000.source")
     tgt_vocab_file = os.path.join(data_dir,"vocab.200000.target")
-    train_src_file = os.path.join(data_dir,"train.tokenize.lower.1211.source")
-    train_tgt_file = os.path.join(data_dir,"train.tokenize.lower.1211.target")
+    train_src_file = os.path.join(data_dir,"train.tokenize.lower.1211.shuffle.source")
+    train_tgt_file = os.path.join(data_dir,"train.tokenize.lower.1211.shuffle.target")
 
     config = BasicConfig()
     src_w2i, src_i2w = read_vocab(src_vocab_file)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         model.init()
         if restore:
             print("restore model")
-            model.restore_model(38000)
+            model.restore_model(46000)
 
         step_time, checkpoint_loss, checkpoint_predict_count = 0.0, 0.0, 0.0
         train_ppl = 0.0

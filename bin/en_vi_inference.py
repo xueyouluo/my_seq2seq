@@ -50,7 +50,7 @@ if __name__ == "__main__":
         model.restore_model()
 
         while True:
-            raw = raw_input("Enter sentence(-1 to exit):")
+            raw = input("Enter sentence(-1 to exit):")
             try:
                 if int(raw) == -1:
                     break
