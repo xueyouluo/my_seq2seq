@@ -1,7 +1,18 @@
-# my_seq2seq
+# Seq2Seq models
 This is a project to learn to implement different s2s model on tensorflow.
 
+> This project is only used for learning, which means it will contain many bugs. I suggest to use nmt project to do experiments. You can find it in the reference part.
+
 ## Structure
+
+A typical sequence to sequence(seq2seq) model contains an encoder, an decoder and an attetion structure. Tensorflow provide many useful apis to implement a seq2seq model, usually you will need belowing apis:
+- [tf.contrib.rnn](https://tensorflow.google.cn/api_docs/python/tf/contrib/rnn)
+    - Different RNNs
+- [tf.contrib.seq2seq](https://tensorflow.google.cn/api_docs/python/tf/contrib/seq2seq)
+    - Provided different attention mechanism and also a good implementation of beam search
+- [tf.data](https://tensorflow.google.cn/api_docs/python/tf/data)
+    - data preproces pipeline apis
+- Other apis you need to build and train a model
 
 ### Encoder
 
@@ -10,21 +21,31 @@ Use either:
     - use the last state of the last layer rnn as the initial decode state
 - Bi-direction rnn
     - use a Dense layer to convert the fw and bw state to the initial decode state
+- GNMT encoder
+    - a bidirection rnn + serveral rnn with residual conection
 
 ### Decoder
 
 - Use multi-layer rnn, and set the inital state of each layer to initial decode state
-- only apply attention to first layer of decoder
+- GNMT decoder 
+    - only apply attention to the bottom layer of decoder, so we can utilize multi gpus during training
 
 ### Attention
 
 - Bahdanau
 - Luong
 
-### Note
+### Metrics
+Right now I only have cross entropy loss. Will add following metrics:
+- bleu
+    - for translation problems
+- rouge
+    - for summarization problems
 
-- Using tf-1.2.1
-- ~~I also tried to run this code on tf1.2.rc1 on windows, but got some strange errors about gather_tree operation.~~
+### Dependency
+
+- Using tf-1.3
+- Python 3
 
 ## Run
 
@@ -40,16 +61,16 @@ inference:
 python -m bin.toy_inference
 ```
 
+Also you can run on en-vi dataset, see en\_vietnam\_train.py in bin for more details
+
 ## TODO
 
 What I will do next:
 
-- [x] code refactoring, make the code more readable and easy to build new model
-- [ ] test on more dataset
-- [ ] how to add other features before attention layer
-- [ ] how to add more layer after attention layer
-- [ ] how to implement our own attention layer
+- [ ] implement the point-generator model, which shows promising results on summarization tasks
+- [ ] read the source code of nmt
 - [ ] read the source code of tf.contrib.seq2seq
+- [ ] be able to implement different seq2seq structures based on tensorflow
 
 ## Reference
 
