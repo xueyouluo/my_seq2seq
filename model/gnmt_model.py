@@ -10,7 +10,7 @@ def gnmt_residual_fn(inputs, outputs):
     """Residual function that handles different inputs and outputs inner dims.
     Args:
     inputs: cell inputs, this is actual inputs concatenated with the attention
-        vector.
+        vector. refer to GNMT RNN cell
     outputs: cell outputs
     Returns:
     outputs + actual inputs
@@ -33,6 +33,7 @@ class GNMTModel(S2SModelWithPipeline):
         super(GNMTModel, self).__init__(sess, data_iterator, config)
 
     def setup_bidirection_encoder(self):
+        print("set up GNMT encoder")
         num_layer = self.config.encode_layer_num
         num_residual_layer = num_layer - 2
         num_bi_layer = 1
@@ -56,6 +57,7 @@ class GNMTModel(S2SModelWithPipeline):
             self.encode_state = encoder_state
 
     def setup_attention_decoder(self):
+        print("set up GNMT attetion decoder")
         with tf.variable_scope("Decoder"):
             num_residual_layers = self.config.decode_layer_num - 2
             # multi-layer decoder
@@ -73,6 +75,8 @@ class GNMTModel(S2SModelWithPipeline):
                     memory, self.config.beam_size)
                 memory_length = tf.contrib.seq2seq.tile_batch(
                     memory_length, self.config.beam_size)
+                self.encode_state =  tf.contrib.seq2seq.tile_batch(
+                    self.encode_state, self.config.beam_size)
                 batch_size = self.batch_size * self.config.beam_size
 
             atten_mech = create_attention_mechanism(
@@ -80,12 +84,15 @@ class GNMTModel(S2SModelWithPipeline):
 
             # Only wrap the bottom layer with the attention mechanism.
             attention_cell = decode_cell.pop(0)
+            # Only generate alignment in greedy INFER mode.
+            alignment_history = (self.config.mode=='inference' and self.config.beam_size == 0)
 
             attention_cell = tf.contrib.seq2seq.AttentionWrapper(
                 attention_cell,
                 atten_mech,
                 attention_layer_size=None,  # don't use attention layer.
                 output_attention=False,
+                alignment_history = alignment_history,
                 name="attention")
 
             cell = GNMTAttentionMultiCell(attention_cell, decode_cell)
@@ -99,9 +106,6 @@ class GNMTModel(S2SModelWithPipeline):
                     cell.zero_state(batch_size, dtype=tf.float32), self.encode_state))
 
             self.decode_cell = cell
-            self.output_layer = Dense(
-                self.config.tgt_vocab_size, kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1), use_bias=False)
-
 
 class GNMTAttentionMultiCell(tf.nn.rnn_cell.MultiRNNCell):
     """A MultiCell with GNMT attention style."""
