@@ -110,7 +110,7 @@ class GNMTModel(S2SModelWithPipeline):
 class GNMTAttentionMultiCell(tf.nn.rnn_cell.MultiRNNCell):
     """A MultiCell with GNMT attention style."""
 
-    def __init__(self, attention_cell, cells, use_new_attention=False):
+    def __init__(self, attention_cell, cells, use_new_attention=True):
         """Creates a GNMTAttentionMultiCell.
         Args:
         attention_cell: An instance of AttentionWrapper.
