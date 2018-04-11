@@ -23,7 +23,7 @@ class BatchedInput(collections.namedtuple("BatchedInput",
     pass
 
 
-def create_vocab(filename, delimiter=" ", min_count=0):
+def create_vocab(filename, delimiter=" ", min_count=0, max_size=0):
     """
     words should be split by delimiter, default is space
     """
@@ -36,9 +36,12 @@ def create_vocab(filename, delimiter=" ", min_count=0):
             line = f.readline().strip()
     words = counter.most_common()
     words = [word for word in words if word[1] >= min_count]
+    if max_size:
+        words = words[:max_size]
     word2id = {SOS: SOS_ID, EOS: EOS_ID, UNK: UNK_ID}
     for word, _ in words:
         word2id[word] = len(word2id)
+        
     id2word = {i: w for w, i in word2id.items()}
     return word2id, id2word, words
 

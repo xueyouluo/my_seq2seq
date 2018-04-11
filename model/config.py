@@ -66,3 +66,8 @@ class BasicConfig(object):
         arttribute = vars(self)
         arttribute = {k:v for k,v in arttribute.items() if not k.startswith("__")}
         return str(arttribute)
+
+
+class PointGeneratorConfig(BasicConfig):
+    coverage = False
+    coverage_loss_ratio = 1.0
