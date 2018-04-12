@@ -72,7 +72,7 @@ config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
 config.batch_size = 64
 config.checkpoint_dir = "/tmp/test_pg/"
-config.coverage = False
+config.coverage = True
 
 import tensorflow as tf
 

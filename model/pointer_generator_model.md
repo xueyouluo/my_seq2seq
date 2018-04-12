@@ -20,7 +20,7 @@ Since I want to use seq2seq apis, I have to read the source code of these apis a
 
 Tensorflow is a static graph, so the code doesn't run in the order you write. The while loop makes me want to die. I want to use pytorch now.
 
-I don't have time to test coverage right now. I only use the toy data to test the copy mechanism, which works.
+I don't have time to test coverage with large dataset right now. I only use the toy data to test the them, which works.
 
 ### Beam search
 

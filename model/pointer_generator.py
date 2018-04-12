@@ -232,7 +232,7 @@ class PointerGeneratorModel(BasicS2SModel):
             # shape is: batch * atten_len * max_len
             alignment_history = train_dec_last_state[0].alignment_history.stack()
             alignment_history = tf.transpose(alignment_history,[1,2,0])
-            coverage_loss = tf.minimum(alignment_history,tf.cumsum(alignment_history,axis=2))
+            coverage_loss = tf.minimum(alignment_history,tf.cumsum(alignment_history, axis=2, exclusive=True))
             # debug
             #coverage_loss = tf.Print(coverage_loss,[coverage_loss,tf.shape(coverage_loss)],message='loss')
             coverage_loss = self.config.coverage_loss_ratio * tf.reduce_sum(coverage_loss / tf.to_float(self.batch_size))

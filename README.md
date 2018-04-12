@@ -1,7 +1,23 @@
 # Seq2Seq models
 This is a project to learn to implement different s2s model on tensorflow.
 
-> This project is only used for learning, which means it will contain many bugs. I suggest to use nmt project to do experiments. You can find it in the reference part.
+> This project is only used for learning, which means it will contain many bugs. I suggest to use nmt project to do experiments and train seq2seq models. You can find it in the reference part.
+
+## Models
+
+The models I have implemented are as following:
+
+- Basic seq2seq model 
+    - A model with bi-direction RNN encdoer and attention mechanism
+- Seq2seq model 
+    - Same as basic model, but using tf.data pipeline to process input data
+- GNMT model
+    - Residual conection and attention same as GNMT model to speed up training
+    - refer to [GNMT](https://arxiv.org/abs/1609.08144) for more details
+- Pointer-Generator model
+    - A model that support copy mechanism
+    - refer to [Pointer-Generator](https://arxiv.org/abs/1704.04368) for more details
+
 
 ## Structure
 
@@ -44,7 +60,7 @@ Right now I only have cross entropy loss. Will add following metrics:
 
 ### Dependency
 
-- Using tf-1.3
+- Using tf-1.4
 - Python 3
 
 ## Run
@@ -61,16 +77,9 @@ inference:
 python -m bin.toy_inference
 ```
 
-Also you can run on en-vi dataset, see en\_vietnam\_train.py in bin for more details
+Also you can run on en-vi dataset, refer to en\_vietnam\_train.py in bin for more details.
 
-## TODO
-
-What I will do next:
-
-- [ ] implement the point-generator model, which shows promising results on summarization tasks
-- [ ] read the source code of nmt
-- [ ] read the source code of tf.contrib.seq2seq
-- [ ] be able to implement different seq2seq structures based on tensorflow
+You can find more training scripts in bin directory.
 
 ## Reference
 
@@ -82,5 +91,7 @@ Thanks to following resources:
     - A good implementation of seq2seq with beam search based on tf 1.2.rc1
 - https://github.com/j-min/tf_tutorial_plus
     - I used the demo data from here
+- https://github.com/abisee/pointer-generator
+    - The original pointer-generator network that use old seq2seq apis
 - https://github.com/stanfordmlgroup/nlc
     - This project shows how to implement an attention wrapped rnn cell
