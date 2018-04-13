@@ -91,6 +91,8 @@ Thanks to following resources:
     - A good implementation of seq2seq with beam search based on tf 1.2.rc1
 - https://github.com/j-min/tf_tutorial_plus
     - I used the demo data from here
+- https://github.com/vahidk/EffectiveTensorflow
+    - how to use tensorflow effectivly
 - https://github.com/abisee/pointer-generator
     - The original pointer-generator network that use old seq2seq apis
 - https://github.com/stanfordmlgroup/nlc
