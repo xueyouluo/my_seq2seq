@@ -17,6 +17,11 @@ The models I have implemented are as following:
 - Pointer-Generator model
     - A model that support copy mechanism
     - refer to [Pointer-Generator](https://arxiv.org/abs/1704.04368) for more details
+- CopyNet model
+    - A model also support copy mechanism
+    - refer to [CopyNet](https://arxiv.org/abs/1603.06393) for more details.
+
+For the implement details, refer to [ReadMe](./model/readme.md) in the model folder.
 
 
 ## Structure
@@ -87,6 +92,8 @@ Thanks to following resources:
 
 - https://github.com/tensorflow/nmt
     - google's NMT tutorial, very good resource to learn seq2seq
+- https://github.com/OpenNMT/OpenNMT-tf
+    - code from harvardnlp group, also a good resource to learn seq2seq. Good code style and structure. You can find tensor2tensor implementation details here, which is becoming more and more popular nowdays.
 - https://github.com/JayParks/tf-seq2seq
     - A good implementation of seq2seq with beam search based on tf 1.2.rc1
 - https://github.com/j-min/tf_tutorial_plus
@@ -97,3 +104,5 @@ Thanks to following resources:
     - The original pointer-generator network that use old seq2seq apis
 - https://github.com/stanfordmlgroup/nlc
     - This project shows how to implement an attention wrapped rnn cell
+- https://github.com/lspvic/CopyNet
+    - this project using nmt to implement copynet

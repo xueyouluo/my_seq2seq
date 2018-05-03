@@ -54,33 +54,33 @@ train_target_file = os.path.join(DATA_DIR,"train","targets.txt")
 target_lines = open(train_target_file).readlines()
 
 
-from model.pointer_generator import PointerGeneratorModel
-from model.config import PointGeneratorConfig
+from model.copynet import CopyNet
+from model.config import CopyNetConfig
 from utils.data_util import SOS_ID, EOS_ID
 
 
-config = PointGeneratorConfig()
+config = CopyNetConfig()
 config.src_vocab_size = len(w2i)
 config.tgt_vocab_size = len(w2i)
 config.start_token = SOS_ID
 config.end_token = EOS_ID
 config.use_bidirection = True
 config.encode_layer_num = 2
-config.decode_layer_num = 2
+config.decode_layer_num = 1
 config.num_units = 64
 config.embedding_size = 64
 config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
 config.batch_size = 64
-config.checkpoint_dir = "/tmp/test_pg/"
-config.coverage = True
+config.checkpoint_dir = "/tmp/test_copynet/"
+config.max_oovs = 50
 
 import tensorflow as tf
 
 sess = tf.InteractiveSession()
 #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
-model = PointerGeneratorModel(sess,config)
+model = CopyNet(sess,config)
 
 def get_batch(batch_size):
     input_batch_tokens = []
@@ -111,38 +111,30 @@ def get_batch(batch_size):
 
 
 sess.run(tf.global_variables_initializer())
+import random
 print("start to run")
 loss_history = []
 for epoch in range(100):
     epoch_loss = 0
-    epoch_cov_loss = 0
     i = 0
     for batch in get_batch(config.batch_size):
         input_batch_tokens,enc_sentence_lengths,input_batch_extend_tokens,oovs,target_batch_tokens,dec_sentence_lengths = batch
-        cov_loss = 0
-        if config.coverage:
-            cov_loss, batch_loss = model.train_coverage_one_batch(input_batch_tokens,enc_sentence_lengths,
-                                                       oovs,input_batch_extend_tokens, target_batch_tokens,
-                                                       dec_sentence_lengths)
-            epoch_cov_loss += cov_loss
-        else:
-            batch_loss = model.train_one_batch(input_batch_tokens,enc_sentence_lengths,
-                                                       oovs,input_batch_extend_tokens, target_batch_tokens,
-                                                       dec_sentence_lengths)
+        #print(target_batch_tokens[0])
+        batch_loss = model.train_one_batch(input_batch_tokens,enc_sentence_lengths,
+                                                input_batch_extend_tokens, target_batch_tokens,
+                                                dec_sentence_lengths)
         epoch_loss += batch_loss
-        print("Epoch-{0} batch-{1} batch loss-{2} cov loss-{3}".format(epoch,i+1,batch_loss,cov_loss))
+        #print("Epoch-{0} batch-{1} batch loss-{2}".format(epoch,i+1,batch_loss))
         i += 1
     loss_history.append(epoch_loss)
     predictions,_,logits = model.eval_one_batch(input_batch_tokens,enc_sentence_lengths,
-                                                       oovs,input_batch_extend_tokens, target_batch_tokens,
+                                                       input_batch_extend_tokens, target_batch_tokens,
                                                        dec_sentence_lengths)
     print('Epoch', epoch)
     print('epoch loss: ', epoch_loss )
-    if config.coverage:
-        print('epoch cov loss: ', epoch_cov_loss )
-    print("Input:", input_batch_tokens[0])
-    print("Input Extend:",input_batch_extend_tokens[0])
-    print("Prediction:",predictions[0])
-    print("Truth:",target_batch_tokens[0])
-    print("Logits shape:",logits[0].shape)
+    idx = random.sample(range(len(input_batch_tokens)),1)[0]
+    print("Input:", input_batch_tokens[idx])
+    print("Input Extend:",input_batch_extend_tokens[idx])
+    print("Prediction:",predictions[idx])
+    print("Truth:",target_batch_tokens[idx])
 

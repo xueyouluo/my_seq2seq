@@ -71,3 +71,6 @@ class BasicConfig(object):
 class PointGeneratorConfig(BasicConfig):
     coverage = False
     coverage_loss_ratio = 1.0
+
+class CopyNetConfig(BasicConfig):
+    max_oovs = 100

@@ -120,6 +120,7 @@ class BasicS2SModel(object):
         self.param_norm = tf.global_norm(params)
         self.updates = opt.apply_gradients(
             zip(clipped_gradients, params), global_step=self.global_step)
+        
 
     def setup_summary(self):
         self.summary_writer = tf.summary.FileWriter(
@@ -218,6 +219,9 @@ class BasicS2SModel(object):
 
             self.encode_inputs = tf.nn.embedding_lookup(
                 self.encode_embedding, self.source_tokens)
+
+            #is_nan = tf.reduce_sum(tf.cast(tf.is_nan(self.encode_embedding),tf.int32))
+            #self.encode_inputs = tf.Print(self.encode_inputs,[tf.reduce_sum(is_nan), self.source_tokens, self.encode_embedding, self.encode_inputs],message="encoder inputs")
             if self.train_phase:
                 self.decoder_inputs = tf.nn.embedding_lookup(
                     self.decode_embedding, self.decoder_inputs)
@@ -254,6 +258,7 @@ class BasicS2SModel(object):
         self.encode_output = outputs_concat
         self.encode_state = states
 
+        #self.encode_output = tf.Print(self.encode_output,[self.encode_output],message='encoder output')
         # use Dense layer to convert bi-direction state to decoder inital state
         with tf.variable_scope("Bi_Encode_State_Convert"):
             convert_layer = Dense(
@@ -366,9 +371,13 @@ class BasicS2SModel(object):
         #    logits=logits, targets=targets, weights=masks, name="losses", average_across_timesteps=True, average_across_batch=True,)
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=targets, logits=logits)
+
+        
         self.crossent = crossent
         self.losses = tf.reduce_sum(
             crossent * masks) / tf.to_float(self.batch_size)
+        #is_nan = tf.cast(tf.is_nan(self.losses),tf.int32)
+        #self.losses = tf.Print(self.losses,[tf.shape(targets), tf.shape(logits), tf.reduce_sum(is_nan), self.logits, self.targets, crossent, self.losses],message='losses')
         # prediction sample for validation
         self.valid_predictions = tf.identity(
             train_dec_outputs.sample_id, name='valid_preds')
