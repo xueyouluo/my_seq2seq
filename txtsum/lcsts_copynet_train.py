@@ -139,11 +139,11 @@ config.num_units = 512
 config.embedding_size = 256
 config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
-config.batch_size = 128
+config.batch_size = 256
 config.checkpoint_dir = os.path.join(DATA_DIR,"copynet_new")
 config.max_oovs = 200
 config.num_gpus = 2
-config.num_train_steps = 500000
+config.num_train_steps = 100000
 # using Adam, not decay schema
 config.decay_scheme = None 
 config.src_vocab_file = os.path.join(DATA_DIR,"vocab.txt")

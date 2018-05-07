@@ -44,6 +44,9 @@ I found tf.einsum is a very useful api to manipulate matrixes, you can find how 
 
 You can refer to [A basic introduction to NumPy's einsum](http://ajcr.net/Basic-guide-to-einsum/) for a basic introduction of einsum.
 
+> **Warning:** \
+> I found einsum is much slower than scatter\_nd and gather\_nd, using one_hot is memory cosuming, so I replace some einsum with scatter\_nd and gather\_nd. 
+
 ## Test
 
 I test the code using the toy data, check the test_copynet.py in the bin folder for details. After about 20 epochs, the results  is almost the same as the truth.

@@ -148,10 +148,8 @@ config.decode_cell_type = 'gru'
 config.batch_size = 256
 config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator")
 config.num_gpus = 2
-config.num_train_steps = 500000
-config.optimizer = 'sgd'
-config.learning_rate = 1.0
-config.decay_scheme = 'luong10'
+config.num_train_steps = 100000
+config.decay_scheme = None
 config.src_vocab_file = os.path.join(DATA_DIR,"vocab.txt")
 
 with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
