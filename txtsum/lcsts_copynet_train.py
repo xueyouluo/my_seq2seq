@@ -134,15 +134,15 @@ config.start_token = SOS_ID
 config.end_token = EOS_ID
 config.use_bidirection = True
 config.encode_layer_num = 2
-config.decode_layer_num = 3
+config.decode_layer_num = 4
 config.num_units = 512
 config.embedding_size = 256
 config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
-config.batch_size = 32
-config.checkpoint_dir = os.path.join(DATA_DIR,"copynet_debug")
+config.batch_size = 128
+config.checkpoint_dir = os.path.join(DATA_DIR,"copynet_new")
 config.max_oovs = 200
-config.num_gpus = 1
+config.num_gpus = 2
 config.num_train_steps = 500000
 # using Adam, not decay schema
 config.decay_scheme = None 
@@ -162,8 +162,8 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     step = 0
     losses = 0.
     step_time = 0.0
-    step_pre_show = 5
-    step_pre_predict = 100
+    step_pre_show = 10
+    step_pre_predict = 1000
     step_pre_save = 5000
     global_step = model.global_step.eval(session=sess)
     while global_step < config.num_train_steps:         
@@ -171,7 +171,7 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
             step += 1
             source_tokens, source_lengths, source_extend_tokens, target_tokens, target_length, batch_oovs = batch
             start = time.time()
-            batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, source_extend_tokens, target_tokens, target_length, True if step%step_pre_show==0 else False)
+            batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, source_extend_tokens, target_tokens, target_length, True if step%step_pre_save==0 else False)
             end = time.time()
             losses += batch_loss
             step_time += (end-start)
