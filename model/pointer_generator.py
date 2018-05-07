@@ -253,7 +253,7 @@ class PointerGeneratorModel(BasicS2SModel):
         losses, summary, global_step, _ = self.sess.run(
             [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
         self.summary_writer.add_summary(summary, global_step)
-        return losses
+        return losses, global_step
 
     def train_coverage_one_batch(self, source_tokens, source_length, source_oov_words, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}
@@ -266,7 +266,7 @@ class PointerGeneratorModel(BasicS2SModel):
         cov_loss, losses, summary, global_step, _ = self.sess.run(
             [self.coverage_loss, self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
         self.summary_writer.add_summary(summary, global_step)
-        return cov_loss, losses
+        return cov_loss, losses, global_step
 
     def eval_one_batch(self, source_tokens, source_length,  source_oov_words, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}

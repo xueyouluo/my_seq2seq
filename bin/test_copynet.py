@@ -120,7 +120,7 @@ for epoch in range(100):
     for batch in get_batch(config.batch_size):
         input_batch_tokens,enc_sentence_lengths,input_batch_extend_tokens,oovs,target_batch_tokens,dec_sentence_lengths = batch
         #print(target_batch_tokens[0])
-        batch_loss = model.train_one_batch(input_batch_tokens,enc_sentence_lengths,
+        batch_loss,_ = model.train_one_batch(input_batch_tokens,enc_sentence_lengths,
                                                 input_batch_extend_tokens, target_batch_tokens,
                                                 dec_sentence_lengths)
         epoch_loss += batch_loss

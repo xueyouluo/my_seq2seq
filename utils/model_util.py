@@ -243,14 +243,14 @@ def bidirection_rnn_cell(cell_name, num_units, num_bi_layers, train_phase, keep_
 
 
 def get_config_proto(log_device_placement=True, allow_soft_placement=True,
-                     num_intra_threads=0, num_inter_threads=0):
+                     num_intra_threads=0, num_inter_threads=0,per_process_gpu_memory_fraction=0.95):
     # GPU options:
     # https://www.tensorflow.org/versions/r0.10/how_tos/using_gpu/index.html
     config_proto = tf.ConfigProto(
         log_device_placement=log_device_placement,
         allow_soft_placement=allow_soft_placement)
     config_proto.gpu_options.allow_growth = True
-
+    config_proto.gpu_options.per_process_gpu_memory_fraction = per_process_gpu_memory_fraction
     # CPU threads options
     if num_intra_threads:
         config_proto.intra_op_parallelism_threads = num_intra_threads

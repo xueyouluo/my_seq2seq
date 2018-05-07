@@ -109,7 +109,8 @@ class BasicS2SModel(object):
             self.learning_rate = self._get_learning_rate_warmup()
             # decay
             self.learning_rate = self._get_learning_rate_decay()
-
+        else:
+            self.learning_rate = self.config.learning_rate
 
         opt = get_optimizer(self.config.optimizer)(self.learning_rate)
         params = tf.trainable_variables()
@@ -145,10 +146,10 @@ class BasicS2SModel(object):
 
     def save_model(self, epoch=None):
         if epoch is None:
-            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir,
+            return self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir,
                             "model.ckpt"), global_step=self.global_step)
         else:
-            self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir,
+            return self.saver.save(self.sess, os.path.join(self.config.checkpoint_dir,
                             "model.ckpt"), global_step=epoch)
 
     def setup_input_placeholders(self):
@@ -198,6 +199,8 @@ class BasicS2SModel(object):
         Make the vocab metadata file, then make the projector config file pointing to it."""
         print("add embedding to tensorboard")
         w2i, i2w = read_vocab(vocab_file)
+        if not os.path.exists(self.config.checkpoint_dir):
+            os.mkdir(self.config.checkpoint_dir)
         vocab_metadata_path = os.path.join(self.config.checkpoint_dir, "vocab_metadata.tsv")
         self.write_metadata(vocab_metadata_path, i2w) # write metadata file
         summary_writer = tf.summary.FileWriter(self.config.checkpoint_dir)

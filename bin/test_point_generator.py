@@ -121,12 +121,12 @@ for epoch in range(100):
         input_batch_tokens,enc_sentence_lengths,input_batch_extend_tokens,oovs,target_batch_tokens,dec_sentence_lengths = batch
         cov_loss = 0
         if config.coverage:
-            cov_loss, batch_loss = model.train_coverage_one_batch(input_batch_tokens,enc_sentence_lengths,
+            cov_loss, batch_loss,_ = model.train_coverage_one_batch(input_batch_tokens,enc_sentence_lengths,
                                                        oovs,input_batch_extend_tokens, target_batch_tokens,
                                                        dec_sentence_lengths)
             epoch_cov_loss += cov_loss
         else:
-            batch_loss = model.train_one_batch(input_batch_tokens,enc_sentence_lengths,
+            batch_loss,_ = model.train_one_batch(input_batch_tokens,enc_sentence_lengths,
                                                        oovs,input_batch_extend_tokens, target_batch_tokens,
                                                        dec_sentence_lengths)
         epoch_loss += batch_loss
