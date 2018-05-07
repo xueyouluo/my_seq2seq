@@ -132,9 +132,11 @@ class CopyNet(BasicS2SModel):
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
 
-        losses, summary, global_step, _ = self.sess.run(
-            [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
-
+            losses, summary, global_step, _ = self.sess.run(
+                [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
+        else:
+            losses, summary, global_step, _ = self.sess.run(
+                [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
         if run_info:
             self.summary_writer.add_run_metadata(run_metadata, 'step%03d' % global_step)
             print("adding run meta for",global_step)

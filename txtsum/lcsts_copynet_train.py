@@ -140,7 +140,7 @@ config.embedding_size = 256
 config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
 config.batch_size = 32
-config.checkpoint_dir = os.path.join(DATA_DIR,"copynet")
+config.checkpoint_dir = os.path.join(DATA_DIR,"copynet_debug")
 config.max_oovs = 200
 config.num_gpus = 1
 config.num_train_steps = 500000
@@ -162,7 +162,7 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     step = 0
     losses = 0.
     step_time = 0.0
-    step_pre_show = 10
+    step_pre_show = 5
     step_pre_predict = 100
     step_pre_save = 5000
     global_step = model.global_step.eval(session=sess)
