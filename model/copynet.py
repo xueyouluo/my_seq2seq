@@ -120,15 +120,24 @@ class CopyNet(BasicS2SModel):
         self.beam_predictions = tf.transpose(beam_predictions, perm=[0, 2, 1])
 
 
-    def train_one_batch(self, source_tokens, source_length, source_extend_tokens, target_tokens, target_length):
+    def train_one_batch(self, source_tokens, source_length, source_extend_tokens, target_tokens, target_length, run_info=False):
         feed_dict = {}
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.source_extend_tokens] = source_extend_tokens
         feed_dict[self.target_tokens] = target_tokens
         feed_dict[self.target_length] = target_length
+
+        if run_info:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+
         losses, summary, global_step, _ = self.sess.run(
             [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
+
+        if run_info:
+            self.summary_writer.add_run_metadata(run_metadata, 'step%03d' % global_step)
+            print("adding run meta for",global_step)
         self.summary_writer.add_summary(summary, global_step)
         return losses, global_step
 

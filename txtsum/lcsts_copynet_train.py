@@ -157,7 +157,7 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
         print("restore model successfully")
     except:
         print("fail to load model")
-        
+
     epoch = 0
     step = 0
     losses = 0.
@@ -171,7 +171,7 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
             step += 1
             source_tokens, source_lengths, source_extend_tokens, target_tokens, target_length, batch_oovs = batch
             start = time.time()
-            batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, source_extend_tokens, target_tokens, target_length)
+            batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, source_extend_tokens, target_tokens, target_length, True if step%step_pre_show==0 else False)
             end = time.time()
             losses += batch_loss
             step_time += (end-start)

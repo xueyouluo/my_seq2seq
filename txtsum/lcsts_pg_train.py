@@ -128,7 +128,7 @@ def convert_ids_to_sentences(ids, vocab, oovs):
     return "".join(tokens)
 
 
-DATA_DIR = "/data/xueyou/textsum/lcsts"
+DATA_DIR = "/data/xueyou/textsum/lcsts_0507"
 w2i,i2w = read_vocab(os.path.join(DATA_DIR,'vocab.txt'))
 train_source_file = os.path.join(DATA_DIR,"train.source")
 train_target_file = os.path.join(DATA_DIR,"train.target")
