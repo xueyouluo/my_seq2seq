@@ -72,12 +72,15 @@ config.embedding_size = 64
 config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
 config.batch_size = 64
+config.num_gpus = 1
+config.optimizer = 'ada'
+config.learning_rate = 0.1
 config.checkpoint_dir = "/tmp/test_pg/"
-config.coverage = True
+config.coverage = False
 
 import tensorflow as tf
 
-sess = tf.InteractiveSession()
+sess = tf.Session()
 #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 model = PointerGeneratorModel(sess,config)
@@ -130,7 +133,7 @@ for epoch in range(100):
                                                        oovs,input_batch_extend_tokens, target_batch_tokens,
                                                        dec_sentence_lengths)
         epoch_loss += batch_loss
-        print("Epoch-{0} batch-{1} batch loss-{2} cov loss-{3}".format(epoch,i+1,batch_loss,cov_loss))
+        #print("Epoch-{0} batch-{1} batch loss-{2} cov loss-{3}".format(epoch,i+1,batch_loss,cov_loss))
         i += 1
     loss_history.append(epoch_loss)
     predictions,_,logits = model.eval_one_batch(input_batch_tokens,enc_sentence_lengths,

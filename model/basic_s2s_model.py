@@ -111,7 +111,9 @@ class BasicS2SModel(object):
             self.learning_rate = self._get_learning_rate_decay()
         else:
             self.learning_rate = self.config.learning_rate
+        self.setup_learning()
 
+    def setup_learning(self):
         opt = get_optimizer(self.config.optimizer)(self.learning_rate)
         params = tf.trainable_variables()
         gradients = tf.gradients(self.losses, params, colocate_gradients_with_ops=self.config.colocate_gradients_with_ops)
@@ -119,8 +121,9 @@ class BasicS2SModel(object):
             gradients, self.config.max_gradient_norm)
         self.gradient_norm = tf.global_norm(gradients)
         self.param_norm = tf.global_norm(params)
-        self.updates = opt.apply_gradients(
-            zip(clipped_gradients, params), global_step=self.global_step)
+        with tf.device("/gpu:1"):
+            self.updates = opt.apply_gradients(
+                zip(clipped_gradients, params), global_step=self.global_step)
         
 
     def setup_summary(self):

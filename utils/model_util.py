@@ -100,6 +100,8 @@ def get_optimizer(opt):
         optfn = tf.train.AdamOptimizer
     elif opt == "sgd":
         optfn = tf.train.GradientDescentOptimizer
+    elif opt == 'ada':
+        optfn = tf.train.AdagradOptimizer
     else:
         assert False
     return optfn

@@ -163,7 +163,7 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     losses = 0.
     step_time = 0.0
     step_pre_show = 10
-    step_pre_predict = 1000
+    step_pre_predict = 500
     step_pre_save = 5000
     global_step = model.global_step.eval(session=sess)
     while global_step < config.num_train_steps:         
