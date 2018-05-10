@@ -49,6 +49,20 @@ class PointerGeneratorModel(BasicS2SModel):
 
             self.predict_count = tf.reduce_sum(self.decoder_inputs_length)
 
+    def convert_to_coverage_model(self):
+        print("restore old model")
+        saver = tf.train.Saver([v for v in tf.global_variables() if 'coverage' not in v.name and "Adagrad" not in v.name])
+        saver.restore(self.sess, tf.train.latest_checkpoint(
+                self.config.checkpoint_dir))
+        
+        new_fname = self.config.checkpoint_dir + '_coverage'
+        new_saver = tf.train.Saver() # this one will save all variables that now exist
+        print("save to new model")
+        new_saver.save(sess, new_fname)
+
+        self.config.checkpoint_dir = new_fname
+
+
     def setup_attention_decoder(self):
         print("setup attention decoder")
         with tf.variable_scope("Decoder"):

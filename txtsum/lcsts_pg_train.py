@@ -146,15 +146,21 @@ config.embedding_size = 256
 config.encode_cell_type = 'gru'
 config.decode_cell_type = 'gru'
 config.batch_size = 256
-config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator")
+config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator_new")
 config.num_gpus = 2
-config.num_train_steps = 100000
-config.decay_scheme = None
+config.num_train_steps = 150000
+config.optimizer = 'ada'
+config.learning_rate = 0.15
+config.decay_scheme = 'luong10'
+config.coverage = True
 config.src_vocab_file = os.path.join(DATA_DIR,"vocab.txt")
 
 with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     model = PointerGeneratorModel(sess, config)
     sess.run(tf.global_variables_initializer())
+
+    if config.coverage:
+        model.convert_to_coverage_model()
 
     try:
         model.restore_model()
@@ -165,6 +171,8 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     epoch = 0
     step = 0
     losses = 0.
+    cov_losses = 0.
+    cov_loss = 0.
     step_time = 0.0
     step_per_show = 100
     step_per_predict = 1000
@@ -175,14 +183,19 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
             step += 1
             source_tokens, source_lengths, source_extend_tokens, source_oovs, target_tokens, target_length, max_oovs= batch
             start = time.time()
-            batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
+            if config.coverage:
+                cov_loss, batch_loss, global_step = model.train_coverage_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
+                cov_losses += cov_loss
+            else:
+                batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
             end = time.time()
             losses += batch_loss
             step_time += (end-start)
             if step % step_per_show == 0:
-                print("Epoch {0}, step {1}, loss {2}, step-time {3}".format(epoch + 1, global_step, losses/step_per_show, step_time/step_per_show))
+                print("Epoch {0}, step {1}, loss {2}, cov_loss {4}, step-time {3}".format(epoch + 1, global_step, losses/step_per_show, step_time/step_per_show, cov_losses/step_per_show))
                 losses = 0.0
                 step_time = 0.0
+                cov_losses = 0.0
 
             if step % step_per_predict == 0:
                 predictions,_,_ = model.eval_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
