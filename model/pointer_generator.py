@@ -58,10 +58,9 @@ class PointerGeneratorModel(BasicS2SModel):
         new_fname = self.config.checkpoint_dir + '_coverage'
         new_saver = tf.train.Saver() # this one will save all variables that now exist
         print("save to new model")
-        new_saver.save(sess, new_fname)
-
+        new_saver.save(self.sess, new_fname)
+        self.saver = new_saver
         self.config.checkpoint_dir = new_fname
-
 
     def setup_attention_decoder(self):
         print("setup attention decoder")
