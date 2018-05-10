@@ -1,4 +1,5 @@
 import collections
+import os
 
 import tensorflow as tf
 
@@ -58,7 +59,7 @@ class PointerGeneratorModel(BasicS2SModel):
         new_fname = self.config.checkpoint_dir + '_coverage'
         new_saver = tf.train.Saver() # this one will save all variables that now exist
         print("save to new model")
-        new_saver.save(self.sess, new_fname)
+        new_saver.save(self.sess, os.path.join(new_fname,"model.ckpt"), global_step=self.global_step.eval(self.sess))
         self.saver = new_saver
         self.config.checkpoint_dir = new_fname
 

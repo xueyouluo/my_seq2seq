@@ -165,7 +165,8 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     try:
         model.restore_model()
         print("restore model successfully")
-    except:
+    except Exception as e:
+        print(e)
         print("fail to load model")
 
     epoch = 0
