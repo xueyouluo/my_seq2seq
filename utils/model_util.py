@@ -100,7 +100,7 @@ def get_optimizer(opt):
         optfn = tf.train.AdamOptimizer
     elif opt == "sgd":
         optfn = tf.train.GradientDescentOptimizer
-    elif opt == 'Adagrad' or opt == 'ada':
+    elif opt == 'adagrad':
         optfn = tf.train.AdagradOptimizer
     else:
         assert False
@@ -163,7 +163,7 @@ def single_rnn_cell(cell_name, num_units, train_phase=True, keep_prob=0.75, devi
     if cell_name == "GRU":
         cell = tf.contrib.rnn.GRUCell(num_units)
     elif cell_name == "LSTM":
-        cell = tf.contrib.rnn.LSTMCell(num_units)
+        cell = tf.contrib.rnn.LSTMCell(num_units,state_is_tuple=False)
     else:
         cell = tf.contrib.rnn.BasicRNNCell(num_units)
 

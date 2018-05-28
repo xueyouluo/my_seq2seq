@@ -89,19 +89,17 @@ class PointerGeneratorModel(BasicS2SModel):
 
             # setup initial state of decoder
             initial_state = [self.decode_initial_state for i in range(
-                self.config.decode_layer_num)]
+                 self.config.decode_layer_num)]
             # initial state for attention cell
-            attention_cell_state = decode_cell[0].zero_state(
-                dtype=tf.float32, batch_size=batch_size)
-            initial_state[0] = attention_cell_state.clone(
-                cell_state=initial_state[0])
+            initial_state[0] = decode_cell[0].zero_state(dtype=tf.float32, batch_size=batch_size).clone(
+                cell_state=self.decode_initial_state)
             self.initial_state = tuple(initial_state)
             self.decode_cell = tf.contrib.rnn.MultiRNNCell(decode_cell)
 
     def setup_beam_search(self):
         print("setup beam search")
         # using greedying decoder right now
-        helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+        helper = PointerGeneratorGreedyEmbeddingHelper(
             embedding=self.decode_embedding,
             start_tokens=tf.tile([self.config.start_token], [self.batch_size]),
             end_token=self.config.end_token

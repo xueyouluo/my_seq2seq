@@ -269,8 +269,12 @@ class BasicS2SModel(object):
         with tf.variable_scope("Bi_Encode_State_Convert"):
             convert_layer = Dense(
                 self.config.num_units, dtype=tf.float32, name="bi_convert")
-            self.decode_initial_state = convert_layer(
-                tf.concat(self.encode_state, axis=1))
+            # Note: LSTM cell state is different from other cells
+            if self.config.encode_cell_type == 'lstm':
+                self.decode_initial_state = states[0]
+            else:
+                encode_final_state = tf.concat(self.encode_state, axis=1)
+                self.decode_initial_state = convert_layer(encode_final_state)
 
     def setup_attention_decoder(self):
         print("set up attention decoder")
