@@ -1,12 +1,57 @@
 """Utils used in s2s"""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import codecs
+
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.util import nest
+
+from utils.data_util import read_vocab
+
+def load_pretrained_embedding(vocab_file, embed_file, embedding_name, trainable=True):
+    print("load pretrained embedding file {0}".format(embed_file))
+    emb_dict, emb_size = load_embed_txt(embed_file)
+    w2i,i2w = read_vocab(vocab_file)
+    for word in w2i:
+        if word not in emb_dict:
+            emb_dict[word] = [0.0] * emb_size
+    
+    emb_mat = np.array([emb_dict[word] for word in w2i], dtype=np.float32)
+    emb_mat_var = tf.get_variable(embedding_name, shape=emb_mat.shape, initializer=tf.constant_initializer(emb_mat), trainable=trainable)
+    return emb_mat_var
+
+def load_embed_txt(embed_file):
+    """Load embed_file into a python dictionary.
+
+    Note: the embed_file should be a Glove formated txt file. Assuming
+    embed_size=5, for example:
+
+    the -0.071549 0.093459 0.023738 -0.090339 0.056123
+    to 0.57346 0.5417 -0.23477 -0.3624 0.4037
+    and 0.20327 0.47348 0.050877 0.002103 0.060547
+
+    Args:
+      embed_file: file path to the embedding file.
+    Returns:
+      a dictionary that maps word to vector, and the size of embedding dimensions.
+    """
+    emb_dict = dict()
+    emb_size = None
+    with codecs.getreader("utf-8")(tf.gfile.GFile(embed_file, 'rb')) as f:
+        for line in f:
+            tokens = line.strip().split(" ")
+            word = tokens[0]
+            vec = list(map(float, tokens[1:]))
+            emb_dict[word] = vec
+            if emb_size:
+                assert emb_size == len(
+                    vec), "All embedding size should be same."
+            else:
+                emb_size = len(vec)
+    return emb_dict, emb_size
 
 # this is copied from tf 1.4
 class ResidualWrapper(tf.contrib.rnn.RNNCell):
@@ -112,6 +157,10 @@ def create_emb_for_encoder_and_decoder(share_vocab,
                                        tgt_vocab_size,
                                        src_embed_size,
                                        tgt_embed_size,
+                                       src_vocab_file = None,
+                                       tgt_vocab_file = None,
+                                       src_pretrained_embedding = None,
+                                       tgt_pretrained_embedding = None,
                                        dtype=tf.float32,
                                        scope=None):
     """Create embedding matrix for both encoder and decoder.
@@ -139,18 +188,27 @@ def create_emb_for_encoder_and_decoder(share_vocab,
             if src_vocab_size != tgt_vocab_size:
                 raise ValueError("Share embedding but different src/tgt vocab sizes"
                                  " %d vs. %d" % (src_vocab_size, tgt_vocab_size))
-            embedding = tf.get_variable(
-                "embedding_share", [src_vocab_size, src_embed_size], dtype, initializer=tf.random_uniform_initializer(-1, 1))
+            if src_pretrained_embedding:
+                embedding = load_pretrained_embedding(src_vocab_file, src_pretrained_embedding,"embedding_share")
+            else:
+                embedding = tf.get_variable(
+                    "embedding_share", [src_vocab_size, src_embed_size], dtype, initializer=tf.random_uniform_initializer(-1, 1))
             embedding_encoder = embedding
             embedding_decoder = embedding
         else:
             with tf.variable_scope("encoder"):
-                embedding_encoder = tf.get_variable(
-                    "embedding_encoder", [src_vocab_size, src_embed_size], dtype, initializer=tf.random_uniform_initializer(-1, 1))
+                if src_pretrained_embedding:
+                    embedding_encoder = load_pretrained_embedding(src_vocab_file, src_pretrained_embedding, "embedding_encoder")
+                else:
+                    embedding_encoder = tf.get_variable(
+                        "embedding_encoder", [src_vocab_size, src_embed_size], dtype, initializer=tf.random_uniform_initializer(-1, 1))
 
             with tf.variable_scope("decoder"):
-                embedding_decoder = tf.get_variable(
-                    "embedding_decoder", [tgt_vocab_size, tgt_embed_size], dtype, initializer=tf.random_uniform_initializer(-1, 1))
+                if tgt_pretrained_embedding:
+                    embedding_decoder = load_pretrained_embedding(tgt_vocab_file, tgt_pretrained_embedding, 'embedding_decoder')
+                else:
+                    embedding_decoder = tf.get_variable(
+                        "embedding_decoder", [tgt_vocab_size, tgt_embed_size], dtype, initializer=tf.random_uniform_initializer(-1, 1))
 
     return embedding_encoder, embedding_decoder
 
@@ -168,7 +226,7 @@ def single_rnn_cell(cell_name, num_units, train_phase=True, keep_prob=0.75, devi
         cell = tf.contrib.rnn.BasicRNNCell(num_units)
 
     # dropout wrapper
-    if train_phase and keep_prob < 1.0:
+    if train_phase:
         cell = tf.contrib.rnn.DropoutWrapper(
             cell=cell,
             input_keep_prob=keep_prob,

@@ -4,6 +4,7 @@ import tensorflow as tf
 from utils.model_util import create_attention_mechanism,  get_cell_list
 from utils.data_util import UNK_ID
 from utils.copynet_helper import CopyNetWrapper
+from utils.pointer_generator_helper import PointerGeneratorGreedyEmbeddingHelper
 
 class CopyNet(BasicS2SModel):
     def __init__(self,sess,config=CopyNetConfig()):
@@ -18,8 +19,10 @@ class CopyNet(BasicS2SModel):
 
         # using dynamic batch size
         self.batch_size = tf.shape(self.source_tokens)[0]
-
+        self.keep_prob = 1.0
         if self.train_phase:
+            self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
+
             self.target_tokens = tf.placeholder(tf.int32, shape=[None, None], name='target_tokens')
             self.target_length = tf.placeholder(tf.int32, shape=[None,], name='target_length')
 
@@ -73,10 +76,10 @@ class CopyNet(BasicS2SModel):
 
             batch_size = self.batch_size
             # setup initial state of decoder
-            if self.config.mode == "inference":
-                batch_size = self.batch_size * self.config.beam_size
-                self.decode_initial_state = tf.contrib.seq2seq.tile_batch(
-                    self.decode_initial_state, self.config.beam_size)
+            #if self.config.mode == "inference":
+            #    batch_size = self.batch_size * self.config.beam_size
+            #    self.decode_initial_state = tf.contrib.seq2seq.tile_batch(
+            #        self.decode_initial_state, self.config.beam_size)
             
             initial_state = [self.decode_initial_state for i in range(
                 self.config.decode_layer_num)]
@@ -95,7 +98,7 @@ class CopyNet(BasicS2SModel):
         print("setup beam search")
         # using greedying decoder right now
         # Because we use argmax to get last_ids in copynet wrapper, this may be not compatible with beam search decoder
-        helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+        helper = PointerGeneratorGreedyEmbeddingHelper(
             embedding=self.decode_embedding,
             start_tokens=tf.tile([self.config.start_token], [self.batch_size]),
             end_token=self.config.end_token
@@ -122,6 +125,7 @@ class CopyNet(BasicS2SModel):
 
     def train_one_batch(self, source_tokens, source_length, source_extend_tokens, target_tokens, target_length, run_info=False):
         feed_dict = {}
+        feed_dict[self.keep_prob] = self.config.keep_prob
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.source_extend_tokens] = source_extend_tokens
@@ -145,6 +149,7 @@ class CopyNet(BasicS2SModel):
 
     def eval_one_batch(self, source_tokens, source_length, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}
+        feed_dict[self.keep_prob] = 1.0
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.source_extend_tokens] = source_extend_tokens

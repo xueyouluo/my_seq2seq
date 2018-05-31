@@ -41,7 +41,7 @@ def target2idx(sent, oovs, vocab, max_sentence_length=15):
             tokenized.append(vocab[token])
     return tokenized, current_length
 
-def batch_preprocess(vocab,  sources, targets = None, max_source_len = 75, max_target_len = 15):
+def batch_preprocess(vocab,  sources, targets = None, max_source_len = 85, max_target_len = 25):
     source_tokens = []
     source_extend_tokens = []
     source_lengths = []
@@ -81,7 +81,7 @@ def get_batch(vocab, source_file, target_file=None, batch_size=64):
         tline = tf.readline().strip() if tf else None
         lines.append((sline,tline))
         if len(lines) == batch_size * buffer_size:
-            lines.sort(key = lambda s:s[0])
+            lines.sort(key = lambda s:len(s[0].split()))
             for i in range(0,len(lines),batch_size):
                 sources,targets = zip(*lines[i:i+batch_size])
                 ret = batch_preprocess(vocab, sources, targets)
@@ -94,7 +94,7 @@ def get_batch(vocab, source_file, target_file=None, batch_size=64):
                 yield buffer.pop()
 
     if len(lines) != 0:
-        lines.sort(key = lambda s:s[0])
+        lines.sort(key = lambda s:len(s[0]))
         for i in range(0,len(lines),batch_size):
             sources,targets = zip(*lines[i:i+batch_size])
             ret = batch_preprocess(vocab, sources, targets)
@@ -103,7 +103,7 @@ def get_batch(vocab, source_file, target_file=None, batch_size=64):
     for i in range(len(buffer)):
         yield buffer.pop()
 
-def convert_ids_to_sentences(ids, vocab, oovs):
+def convert_ids_to_sentences(ids, vocab, oovs, join=True):
     tokens = []
     oovs_vocab = {len(vocab)+i:w for i,w in enumerate(oovs)}
     for i in ids:
@@ -115,4 +115,7 @@ def convert_ids_to_sentences(ids, vocab, oovs):
             tokens.append(oovs_vocab[i])
         else:
             tokens.append(vocab[UNK_ID])
-    return "".join(tokens)
+    if join:
+        return "".join(tokens)
+    else:
+        return tokens

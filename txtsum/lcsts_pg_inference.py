@@ -21,13 +21,13 @@ config.start_token = SOS_ID
 config.end_token = EOS_ID
 config.use_bidirection = True
 config.encode_layer_num = 2
-config.decode_layer_num = 4
+config.decode_layer_num = 3
 config.num_units = 512
 config.embedding_size = 256
-config.encode_cell_type = 'gru'
-config.decode_cell_type = 'gru'
+config.encode_cell_type = 'lstm'
+config.decode_cell_type = 'lstm'
 config.batch_size = 1
-config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator")
+config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator_lstm_pretrain_embed_0529",'best_rouge')
 config.coverage = False
 
 with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:

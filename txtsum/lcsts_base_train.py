@@ -7,23 +7,20 @@ import tensorflow as tf
 from tensorflow.python.ops import lookup_ops
 
 from model.config import BasicConfig
-from model.gnmt_model import GNMTModel
 from utils.model_util import get_config_proto
+from model.s2s_model_with_data_pipeline import S2SModelWithPipeline
 from utils.data_util import (EOS, EOS_ID, SOS, SOS_ID, UNK, UNK_ID,
                              create_vocab, get_train_iterator, read_vocab)
 
 if __name__ == "__main__":
-    # before running this training script, download the training data to /tmp/nmt_data
-    # using https://github.com/tensorflow/nmt/blob/master/nmt/scripts/download_iwslt15.sh
-
-    data_dir = "/tmp/nmt_data"
-    src_vocab_file = os.path.join(data_dir,"vocab.en")
-    tgt_vocab_file = os.path.join(data_dir,"vocab.vi")
-    train_src_file = os.path.join(data_dir,"train.en")
-    train_tgt_file = os.path.join(data_dir,"train.vi")
+    data_dir = "/data/xueyou/textsum/lcsts_0507"
+    src_vocab_file = os.path.join(data_dir,"vocab.source")
+    tgt_vocab_file = os.path.join(data_dir,"vocab.target")
+    train_src_file = os.path.join(data_dir,"train.source")
+    train_tgt_file = os.path.join(data_dir,"train.target")
 
     config = BasicConfig()
-    src_w2i,_ = read_vocab(src_vocab_file)
+    src_w2i,i2w = read_vocab(src_vocab_file)
     tgt_w2i,_ = read_vocab(tgt_vocab_file)
 
     config.src_vocab_size = len(src_w2i)
@@ -31,27 +28,29 @@ if __name__ == "__main__":
     config.start_token = SOS_ID
     config.end_token = EOS_ID
     config.use_bidirection = True
-    config.num_units = 512
-    config.encode_cell_type = 'gru'
-    config.decode_cell_type = 'gru'
-    config.batch_size = 256
-    config.attention_option = "scaled_luong"
-    config.checkpoint_dir = "/tmp/envi_gnmt_test/"
-    config.exponential_decay = True
-    config.reverse_source = True
-    # test with 2 gpus, set to 1 if you only have 1 gpu
-    config.num_gpus = 2
-    config.encode_layer_num = 4
     config.decode_layer_num = 4
-    config.length_penalty_weight = 1.0
+    config.num_units = 512
+    config.embedding_size = 256
+    config.encode_cell_type = 'lstm'
+    config.decode_cell_type = 'lstm'
+    config.batch_size = 128
+    config.attention_option = "bahdanau"
+    config.checkpoint_dir = data_dir + "/baseline"
+    config.reverse_source = False
+    config.optimizer = 'adagrad'
+    config.learning_rate = 0.15
+    config.max_inference_length = 25
+    config.beam_size = 1
+    config.src_vocab_file = os.path.join(data_dir,"vocab.txt")
+    config.src_pretrained_embedding = os.path.join(data_dir,"pretrained_w2v_50000_glove.txt")
+    # test with 2 gpus, set to 1 if you only have 1 gpu
+    config.num_gpus = 1
 
     if not os.path.isdir(config.checkpoint_dir):
         os.makedirs(config.checkpoint_dir)
     pickle.dump(config,open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
 
-    # When using GNMT model, you should let allow_soft_placement to be True, otherwise you will get colocate 
-    # gradient problem if you set colocate_gradients_with_ops to be True.
-    with tf.Session(config=get_config_proto()) as sess:
+    with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
         # got error if we use tf.contrib.lookup.index_table_from_file
         src_vocab_table = lookup_ops.index_table_from_file(src_vocab_file, default_value=UNK_ID)
         tgt_vocab_table = lookup_ops.index_table_from_file(tgt_vocab_file, default_value=UNK_ID)
@@ -72,12 +71,16 @@ if __name__ == "__main__":
             source_reverse=config.reverse_source,
             random_seed=201,
             num_buckets=5,
-            src_max_len=50,
-            tgt_max_len=50,
+            src_max_len=85,
+            tgt_max_len=25,
             skip_count=train_skip_count_placeholder)
             
-        model = GNMTModel(sess,train_iterator,config)
-        model.init()
+        model = S2SModelWithPipeline(sess,train_iterator,config)
+        try:
+            model.restore_model()
+        except Exception as e:
+            print("fail to load model with error: {0}".format(e))
+            model.init()
 
         step_time, checkpoint_loss, checkpoint_predict_count = 0.0, 0.0, 0.0
         train_ppl = 0.0
@@ -93,8 +96,9 @@ if __name__ == "__main__":
             })
 
         global_step = model.global_step.eval(session=sess)
-        steps_per_stats = 50
-        num_train_steps = 24000
+        steps_per_stats = 100
+        steps_per_save = 10000
+        num_train_steps = 100000
         while global_step < num_train_steps:
             start_time = time.time()
             try:
@@ -135,9 +139,17 @@ if __name__ == "__main__":
                     avg_step_time, train_ppl))
                 if math.isnan(train_ppl): break
 
+                source,target,predictions = model.eval_one_batch()
+                
+                print(''.join([i2w[i] for i in source[0]]))
+                print(''.join([i2w[i] for i in target[0]]))
+                print(''.join([i2w[i] for i in predictions[0]]))
+                
                 # Reset timer and loss.
                 step_time, checkpoint_loss, checkpoint_predict_count = 0.0, 0.0, 0.0
 
+            if global_step % steps_per_save == 0:
+                model.save_model()
             # TODO: add eval data, add bleu metric ...
 
         # save model after train

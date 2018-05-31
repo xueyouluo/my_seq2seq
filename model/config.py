@@ -19,6 +19,8 @@ class BasicConfig(object):
     # vocab
     src_vocab_file = None
     tgt_vocab_file = None
+    src_pretrained_embedding = None
+    tgt_pretrained_embedding = None
 
     # input data setting
     src_max_len= 50

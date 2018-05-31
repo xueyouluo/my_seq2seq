@@ -23,8 +23,9 @@ class PointerGeneratorModel(BasicS2SModel):
         self.source_extend_tokens = tf.placeholder(tf.int32, shape=[None,None], name='source_extend_tokens')
         
         self.batch_size = tf.shape(self.source_tokens)[0]
-
+        self.keep_prob = 1.0
         if self.train_phase:
+            self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
             self.target_tokens = tf.placeholder(tf.int32, shape=[None, None], name='target_tokens')
             self.target_length = tf.placeholder(tf.int32, shape=[None,], name='target_length')
 
@@ -68,7 +69,7 @@ class PointerGeneratorModel(BasicS2SModel):
         with tf.variable_scope("Decoder"):
             # multi-layer decoder
             decode_cell = get_cell_list(self.config.decode_cell_type, self.config.num_units,
-                                        self.config.decode_layer_num, 0, self.train_phase, self.config.num_gpus, 0, self.config.keep_prob)
+                                        self.config.decode_layer_num, 0, self.train_phase, self.config.num_gpus, 0, self.keep_prob)
 
             memory = self.encode_output
             memory_length = self.source_length
@@ -79,8 +80,9 @@ class PointerGeneratorModel(BasicS2SModel):
             atten_mech = PointerGeneratorBahdanauAttention(
                 self.config.num_units, memory, memory_sequence_length=memory_length, coverage = self.config.coverage)
 
-            decode_cell[0] = PointerGeneratorAttentionWrapper(
-                cell=decode_cell[0],
+            decode_cell = tf.contrib.rnn.MultiRNNCell(decode_cell)
+            decode_cell = PointerGeneratorAttentionWrapper(
+                cell=decode_cell,
                 attention_mechanism=atten_mech,
                 attention_layer_size=self.config.num_units,
                 alignment_history = True,
@@ -88,13 +90,13 @@ class PointerGeneratorModel(BasicS2SModel):
             )
 
             # setup initial state of decoder
-            initial_state = [self.decode_initial_state for i in range(
-                 self.config.decode_layer_num)]
+            #initial_state = [self.decode_initial_state for i in range(
+            #     self.config.decode_layer_num)]
             # initial state for attention cell
-            initial_state[0] = decode_cell[0].zero_state(dtype=tf.float32, batch_size=batch_size).clone(
-                cell_state=self.decode_initial_state)
-            self.initial_state = tuple(initial_state)
-            self.decode_cell = tf.contrib.rnn.MultiRNNCell(decode_cell)
+            initial_state = decode_cell.zero_state(dtype=tf.float32, batch_size=batch_size).clone(
+                cell_state=tuple([self.decode_initial_state for i in range(self.config.decode_layer_num)]))
+            self.initial_state = initial_state
+            self.decode_cell = decode_cell#tf.contrib.rnn.MultiRNNCell(decode_cell)
 
     def setup_beam_search(self):
         print("setup beam search")
@@ -210,16 +212,17 @@ class PointerGeneratorModel(BasicS2SModel):
         # targets: [batch_size x max_dec_len]
         # this is important, because we may have padded endings
         targets = tf.slice(self.decoder_targets, [
-                           0, 0], [-1, max_dec_len], 'targets')
+                            0, 0], [-1, max_dec_len], 'targets')
 
         i1, i2 = tf.meshgrid(tf.range(self.batch_size),
                      tf.range(max_dec_len), indexing="ij")
         indices = tf.stack((i1,i2,targets),axis=2)
         probs = tf.gather_nd(logits, indices)
+        #probs = tf.Print(probs, [logits[0,:10], targets[0,-10:],tf.shape(probs),tf.reduce_sum(tf.cast(tf.less(probs,0),tf.int32))])
 
         # To prevent padding tokens got 0 prob, and get inf when calculating log(p), we set the lower bound of prob
         # I spent a lot of time here to debug the nan losses, inf * 0 = nan
-        probs = tf.where(tf.less_equal(probs,0),tf.ones_like(probs)*1e-10,probs)
+        probs = tf.where(tf.less_equal(probs,0),tf.ones_like(probs)*1e-20,probs)
         
         #is_nan = tf.reduce_sum(tf.cast(tf.is_nan(probs),tf.int32))
         #is_inf = tf.reduce_sum(tf.cast(tf.is_inf(probs),tf.int32))
@@ -236,6 +239,11 @@ class PointerGeneratorModel(BasicS2SModel):
         #alignment_history = tf.transpose(alignment_history,[1,2,0])
         
         #crossent = tf.Print(crossent,[tf.shape(alignments),tf.shape(alignment_history)],message='loss')
+        # targets = tf.slice(self.decoder_targets, [
+        #                    0, 0], [-1, max_dec_len], 'targets')
+        # self.targets = targets
+        # crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        #     labels=targets, logits=logits)
         self.losses = tf.reduce_sum(
             crossent * masks) / tf.to_float(self.batch_size)
 
@@ -256,19 +264,22 @@ class PointerGeneratorModel(BasicS2SModel):
 
     def train_one_batch(self, source_tokens, source_length, source_oov_words, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}
+        feed_dict[self.keep_prob] = self.config.keep_prob
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.source_oov_words] = source_oov_words
         feed_dict[self.source_extend_tokens] = source_extend_tokens
         feed_dict[self.target_tokens] = target_tokens
         feed_dict[self.target_length] = target_length
-        losses, summary, global_step, _ = self.sess.run(
-            [self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
+        logits, losses, summary, global_step, _ = self.sess.run(
+            [self.logits, self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
         self.summary_writer.add_summary(summary, global_step)
+        #print(logits[0].shape)
         return losses, global_step
 
     def train_coverage_one_batch(self, source_tokens, source_length, source_oov_words, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}
+        feed_dict[self.keep_prob] = self.config.keep_prob
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.source_oov_words] = source_oov_words
@@ -282,6 +293,7 @@ class PointerGeneratorModel(BasicS2SModel):
 
     def eval_one_batch(self, source_tokens, source_length,  source_oov_words, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}
+        feed_dict[self.keep_prob] = 1.0
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.source_oov_words] = source_oov_words

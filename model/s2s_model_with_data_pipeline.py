@@ -9,7 +9,7 @@ class S2SModelWithPipeline(BasicS2SModel):
 
     def setup_input_placeholders(self):
         if self.train_phase:
-        
+            self.keep_prob = tf.placeholder(tf.float32,name='keep_prob')
             self.batch_size = tf.size(self.iterator.source_sequence_length)
             self.source_tokens = self.iterator.source
             self.source_length = self.iterator.source_sequence_length
@@ -21,6 +21,7 @@ class S2SModelWithPipeline(BasicS2SModel):
             # To calculate ppl
             self.predict_count = tf.reduce_sum(self.iterator.target_sequence_length)
         else:
+            self.keep_prob = 1.0
             self.source_tokens = tf.placeholder(tf.int32, shape=[None, None])
             self.source_length = tf.placeholder(tf.int32, shape=[None, ])
             # using dynamic batch size
@@ -31,10 +32,12 @@ class S2SModelWithPipeline(BasicS2SModel):
         self.sess.run(tf.tables_initializer())
 
     def train_one_batch(self):
-        _,loss,predict_count,global_step,batch_size,summary = self.sess.run([self.updates,self.losses,self.predict_count,self.global_step,self.batch_size,self.summary_op])
+        feed_dict = {self.keep_prob:self.config.keep_prob}
+        _,loss,predict_count,global_step,batch_size,summary = self.sess.run([self.updates,self.losses,self.predict_count,self.global_step,self.batch_size,self.summary_op],feed_dict=feed_dict)
         self.summary_writer.add_summary(summary, global_step)
         return loss,predict_count,global_step,batch_size
 
     def eval_one_batch(self):
-        _,source,target,predictions = self.sess.run([self.global_step, self.source_tokens, self.decoder_targets, self.valid_predictions])
+        feed_dict = {self.keep_prob:1.0}
+        source,target,predictions = self.sess.run([self.source_tokens, self.decoder_targets, self.valid_predictions],feed_dict=feed_dict)
         return source,target,predictions

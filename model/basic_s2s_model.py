@@ -160,8 +160,9 @@ class BasicS2SModel(object):
         self.source_length = tf.placeholder(tf.int32, shape=[None, ])
         # using dynamic batch size
         self.batch_size = tf.shape(self.source_tokens)[0]
-
+        self.keep_prob = 1.0
         if self.train_phase:
+            self.keep_prob = tf.placeholder(tf.float32,name='keep_prob')
             # the train data should pad with eos
             self.target_tokens = tf.placeholder(tf.int32, shape=[None, None])
             self.target_length = tf.placeholder(tf.int32, shape=[None, ])
@@ -218,7 +219,8 @@ class BasicS2SModel(object):
         with tf.variable_scope("Embedding"):
             with tf.device('/cpu:0'):
                 self.encode_embedding, self.decode_embedding = create_emb_for_encoder_and_decoder(
-                    self.config.share_vocab, self.config.src_vocab_size, self.config.tgt_vocab_size, self.config.embedding_size, self.config.embedding_size)
+                    self.config.share_vocab, self.config.src_vocab_size, self.config.tgt_vocab_size, self.config.embedding_size, self.config.embedding_size,
+                    self.config.src_vocab_file, self.config.tgt_vocab_file, self.config.src_pretrained_embedding, self.config.tgt_pretrained_embedding)
                 # write encode embedding to tensorboard
                 if self.train_phase and self.config.src_vocab_file:
                     self.add_emb_vis(self.encode_embedding, self.config.src_vocab_file)
@@ -236,7 +238,7 @@ class BasicS2SModel(object):
         with tf.variable_scope("Encoder"):
             encode_cell = multi_rnn_cell(self.config.encode_cell_type, self.config.num_units,
                                          self.config.encode_layer_num, self.train_phase,
-                                         self.config.keep_prob, 0, self.config.num_gpus)
+                                         self.keep_prob, 0, self.config.num_gpus)
             outputs, states = tf.nn.dynamic_rnn(
                 encode_cell, inputs=self.encode_inputs, sequence_length=self.source_length, dtype=tf.float32)
         self.encode_output = outputs
@@ -249,9 +251,9 @@ class BasicS2SModel(object):
 
         with tf.variable_scope("Encoder"):
             fw_cell = multi_rnn_cell(self.config.encode_cell_type, self.config.num_units,
-                                     num_bi_layers, self.train_phase, self.config.keep_prob, 0, self.config.num_gpus)
+                                     num_bi_layers, self.train_phase, self.keep_prob, 0, self.config.num_gpus)
             bw_cell = multi_rnn_cell(self.config.encode_cell_type, self.config.num_units, num_bi_layers,
-                                     self.train_phase, self.config.keep_prob, 0, self.config.num_gpus, num_bi_layers)
+                                     self.train_phase, self.keep_prob, 0, self.config.num_gpus, num_bi_layers)
 
             outputs, states = tf.nn.bidirectional_dynamic_rnn(
                 cell_fw=fw_cell,
@@ -267,11 +269,14 @@ class BasicS2SModel(object):
         #self.encode_output = tf.Print(self.encode_output,[self.encode_output],message='encoder output')
         # use Dense layer to convert bi-direction state to decoder inital state
         with tf.variable_scope("Bi_Encode_State_Convert"):
-            convert_layer = Dense(
-                self.config.num_units, dtype=tf.float32, name="bi_convert")
             # Note: LSTM cell state is different from other cells
+            convert_layer = Dense(
+                    self.config.num_units, dtype=tf.float32, name="bi_convert", activation=tf.nn.relu, use_bias=True)
             if self.config.encode_cell_type == 'lstm':
-                self.decode_initial_state = states[0]
+                convert_layer = Dense(
+                    2*self.config.num_units, dtype=tf.float32, name="bi_convert", activation=tf.nn.relu, use_bias=True)
+                self.decode_initial_state = convert_layer(tf.concat(self.encode_state,axis=1))
+                #self.decode_initial_state = self.encode_state
             else:
                 encode_final_state = tf.concat(self.encode_state, axis=1)
                 self.decode_initial_state = convert_layer(encode_final_state)
@@ -281,7 +286,7 @@ class BasicS2SModel(object):
         with tf.variable_scope("Decoder"):
             # multi-layer decoder
             decode_cell = get_cell_list(self.config.decode_cell_type, self.config.num_units,
-                                        self.config.decode_layer_num, 0, self.train_phase, self.config.num_gpus, 0, self.config.keep_prob)
+                                        self.config.decode_layer_num, 0, self.train_phase, self.config.num_gpus, 0, self.keep_prob)
 
             memory = self.encode_output
             memory_length = self.source_length
@@ -318,7 +323,7 @@ class BasicS2SModel(object):
             self.decode_cell = tf.contrib.rnn.MultiRNNCell(decode_cell)
 
     def setup_beam_search(self):
-        print("set up beam search")
+        print("set up beam search in basic")
         start_tokens = tf.fill([self.batch_size], self.config.start_token)
         bsd = tf.contrib.seq2seq.BeamSearchDecoder(
             cell=self.decode_cell,
@@ -394,6 +399,7 @@ class BasicS2SModel(object):
 
     def train_one_batch(self, source_tokens, source_length, target_tokens, target_length):
         feed_dict = {}
+        feed_dict[self.keep_prob] = self.config.keep_prob
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.target_tokens] = target_tokens
@@ -405,6 +411,7 @@ class BasicS2SModel(object):
 
     def eval_one_batch(self, source_tokens, source_length, target_tokens, target_length):
         feed_dict = {}
+        feed_dict[self.keep_prob] = 1.0
         feed_dict[self.source_tokens] = source_tokens
         feed_dict[self.source_length] = source_length
         feed_dict[self.target_tokens] = target_tokens

@@ -76,9 +76,12 @@ class PointerGeneratorDecoder(tf.contrib.seq2seq.BasicDecoder):
         with ops.name_scope(name, "PGDecoderStep", (time, inputs, state)):
             cell_outputs, cell_state = self._cell(inputs, state)
             # the first cell state contains attention, which is context
-            attention = cell_state[0].attention
-            att_cell_state = cell_state[0].cell_state
-            alignments = cell_state[0].alignments
+            attention = cell_state.attention
+            att_cell_state = cell_state.cell_state
+            if isinstance(att_cell_state, tuple):
+                att_cell_state = tf.concat(att_cell_state, axis=1)
+                
+            alignments = cell_state.alignments
 
             with tf.variable_scope('calculate_pgen'):
                 p_gen = _linear([attention, inputs, att_cell_state], 1, True)
@@ -92,6 +95,9 @@ class PointerGeneratorDecoder(tf.contrib.seq2seq.BasicDecoder):
             #z = tf.reduce_sum(alignments,axis=1)
             #z = tf.reduce_sum(tf.cast(tf.less_equal(alignments, 0),tf.int32))
             alignments = alignments * (1-p_gen)
+            #vocab_dist = tf.Print(vocab_dist, [
+            #    tf.shape(alignments), tf.shape(attention),
+            #    tf.reduce_sum(tf.cast(tf.less_equal(vocab_dist,0),tf.int32)),tf.reduce_sum(tf.cast(tf.less_equal(alignments,0),tf.int32))],message="vocab_dist")
             
             #x = tf.reduce_sum(tf.cast(tf.less_equal((1-p_gen), 0),tf.int32))
             #y = tf.reduce_sum(tf.cast(tf.less_equal(alignments[3], 0),tf.int32))
