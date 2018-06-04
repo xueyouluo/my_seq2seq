@@ -270,14 +270,14 @@ class BasicS2SModel(object):
         # use Dense layer to convert bi-direction state to decoder inital state
         with tf.variable_scope("Bi_Encode_State_Convert"):
             # Note: LSTM cell state is different from other cells
-            convert_layer = Dense(
-                    self.config.num_units, dtype=tf.float32, name="bi_convert", activation=tf.nn.relu, use_bias=True)
             if self.config.encode_cell_type == 'lstm':
                 convert_layer = Dense(
                     2*self.config.num_units, dtype=tf.float32, name="bi_convert", activation=tf.nn.relu, use_bias=True)
                 self.decode_initial_state = convert_layer(tf.concat(self.encode_state,axis=1))
                 #self.decode_initial_state = self.encode_state
             else:
+                convert_layer = Dense(
+                    self.config.num_units, dtype=tf.float32, name="bi_convert", activation=tf.nn.relu, use_bias=True)
                 encode_final_state = tf.concat(self.encode_state, axis=1)
                 self.decode_initial_state = convert_layer(encode_final_state)
 

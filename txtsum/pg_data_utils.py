@@ -41,7 +41,7 @@ def target2idx(sent, oovs, vocab, max_sentence_length=15):
             tokenized.append(vocab[token])
     return tokenized, current_length
 
-def batch_preprocess(vocab,  sources, targets = None, max_source_len = 85, max_target_len = 25):
+def batch_preprocess(vocab,  sources, targets = None, max_source_len = 70, max_target_len = 15):
     source_tokens = []
     source_extend_tokens = []
     source_lengths = []

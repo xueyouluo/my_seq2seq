@@ -2,7 +2,7 @@ import os
 import random
 import time
 import pickle
-
+import numpy as np
 from collections import Counter
 import tensorflow as tf
 
@@ -36,21 +36,27 @@ config.embedding_size = 256
 config.encode_cell_type = 'lstm'
 config.decode_cell_type = 'lstm'
 config.batch_size = 128
-config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator_lstm_pretrain_embed_0531")
+config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator_lstm_pretrain_embed_0604")
+if not os.path.isdir(config.checkpoint_dir):
+    os.mkdir(config.checkpoint_dir)
 config.num_gpus = 1
-config.num_train_steps = 200000
+config.num_train_steps = 300000
 config.optimizer = 'adagrad'
 config.learning_rate = 0.15
-config.decay_scheme = 'luong10'
+#config.decay_scheme = 'luong10'
 config.max_inference_length = 25
 config.coverage = False
-config.share_vocab = True
+config.share_vocab = False
 config.src_vocab_file = os.path.join(DATA_DIR,"vocab.txt")
 config.src_pretrained_embedding = os.path.join(DATA_DIR,"pretrained_w2v_50000_glove.txt")
 
-pickle.dump(config, open(os.path.join(DATA_DIR,"config.pkl"),'wb'))
+pickle.dump(config, open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
 
 with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
+    #from tensorflow.python import debug as tf_debug
+    #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+    #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
+
     model = PointerGeneratorModel(sess, config)
     sess.run(tf.global_variables_initializer())
 
@@ -70,9 +76,9 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     cov_losses = 0.
     cov_loss = 0.
     step_time = 0.0
-    step_per_show = 100
-    step_per_predict = 1000
-    step_per_save = 10000
+    step_per_show = 10
+    step_per_predict = 100
+    step_per_save = 6000
     best_rouge_2f_score = -100000
     rouge_saver = tf.train.Saver(tf.global_variables())
     rouge_dir = config.checkpoint_dir + "/best_rouge"
@@ -94,7 +100,11 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
                 cov_loss, batch_loss, global_step = model.train_coverage_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
                 cov_losses += cov_loss
             else:
-                batch_loss, global_step = model.train_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
+                batch_loss, global_step, logits = model.train_one_batch(source_tokens, source_lengths, max_oovs, source_extend_tokens, target_tokens, target_length)
+                #if not np.isfinite(batch_loss):
+                #    import pickle
+                #    pickle.dump((batch, probs, logits,alignment_history),open("/tmp/debug.pkl",'wb'))
+                #    exit(1)
             end = time.time()
             losses += batch_loss
             step_time += (end-start)
@@ -145,5 +155,5 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
 
         model.save_model()
         epoch += 1
-
+    print("best rouge: {0}, best bleu: {1}".format(best_rouge_2f_score, best_bleu_score))
 

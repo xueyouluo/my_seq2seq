@@ -151,7 +151,7 @@ class PointerGeneratorModel(BasicS2SModel):
         train_dec_outputs, train_dec_last_state, _ = tf.contrib.seq2seq.dynamic_decode(
             training_decoder,
             output_time_major=False,
-            impute_finished=True,
+            impute_finished=False,
             maximum_iterations=max_dec_len,
             swap_memory=True)
 
@@ -211,18 +211,22 @@ class PointerGeneratorModel(BasicS2SModel):
 
         # targets: [batch_size x max_dec_len]
         # this is important, because we may have padded endings
-        targets = tf.slice(self.decoder_targets, [
-                            0, 0], [-1, max_dec_len], 'targets')
+        #targets = tf.slice(self.decoder_targets, [
+        #                    0, 0], [-1, max_dec_len], 'targets')
 
         i1, i2 = tf.meshgrid(tf.range(self.batch_size),
                      tf.range(max_dec_len), indexing="ij")
-        indices = tf.stack((i1,i2,targets),axis=2)
+        indices = tf.stack((i1,i2,self.decoder_targets),axis=2)
         probs = tf.gather_nd(logits, indices)
-        #probs = tf.Print(probs, [logits[0,:10], targets[0,-10:],tf.shape(probs),tf.reduce_sum(tf.cast(tf.less(probs,0),tf.int32))])
-
+        #probs = tf.Print(probs, [logits[0,:10], self.decoder_targets[0,-10:],tf.shape(probs),tf.reduce_sum(tf.cast(tf.less_equal(probs,0),tf.int32))])
+        
+        self.probs = probs
+        alignment_history = train_dec_last_state.alignment_history.stack()
+        alignment_history = tf.transpose(alignment_history,[1,2,0])
+        self.alignment_history = alignment_history
         # To prevent padding tokens got 0 prob, and get inf when calculating log(p), we set the lower bound of prob
         # I spent a lot of time here to debug the nan losses, inf * 0 = nan
-        probs = tf.where(tf.less_equal(probs,0),tf.ones_like(probs)*1e-20,probs)
+        #probs = tf.where(tf.less_equal(probs,0),tf.ones_like(probs)*1e-20,probs)
         
         #is_nan = tf.reduce_sum(tf.cast(tf.is_nan(probs),tf.int32))
         #is_inf = tf.reduce_sum(tf.cast(tf.is_inf(probs),tf.int32))
@@ -239,20 +243,21 @@ class PointerGeneratorModel(BasicS2SModel):
         #alignment_history = tf.transpose(alignment_history,[1,2,0])
         
         #crossent = tf.Print(crossent,[tf.shape(alignments),tf.shape(alignment_history)],message='loss')
-        # targets = tf.slice(self.decoder_targets, [
-        #                    0, 0], [-1, max_dec_len], 'targets')
-        # self.targets = targets
-        # crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        #     labels=targets, logits=logits)
-        self.losses = tf.reduce_sum(
-            crossent * masks) / tf.to_float(self.batch_size)
+        targets = tf.slice(self.decoder_targets, [
+                           0, 0], [-1, max_dec_len], 'targets')
+        self.targets = targets
+        with tf.control_dependencies([self.alignment_history]):
+            #crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            #    labels=self.targets, logits=self.logits)
+            self.losses = tf.reduce_sum(
+                crossent * masks) / tf.to_float(self.batch_size)
 
         if self.config.coverage:
             # we got all the alignments from last state
             # shape is: batch * atten_len * max_len
-            alignment_history = train_dec_last_state[0].alignment_history.stack()
-            alignment_history = tf.transpose(alignment_history,[1,2,0])
-            coverage_loss = tf.minimum(alignment_history,tf.cumsum(alignment_history, axis=2, exclusive=True))
+            #alignment_history = train_dec_last_state[0].alignment_history.stack()
+            #alignment_history = tf.transpose(alignment_history,[1,2,0])
+            coverage_loss = tf.minimum(self.alignment_history,tf.cumsum(self.alignment_history, axis=2, exclusive=True))
             # debug
             #coverage_loss = tf.Print(coverage_loss,[coverage_loss,tf.shape(coverage_loss)],message='loss')
             coverage_loss = self.config.coverage_loss_ratio * tf.reduce_sum(coverage_loss / tf.to_float(self.batch_size))
@@ -275,7 +280,7 @@ class PointerGeneratorModel(BasicS2SModel):
             [self.logits, self.losses, self.summary_op, self.global_step, self.updates], feed_dict=feed_dict)
         self.summary_writer.add_summary(summary, global_step)
         #print(logits[0].shape)
-        return losses, global_step
+        return losses, global_step, logits
 
     def train_coverage_one_batch(self, source_tokens, source_length, source_oov_words, source_extend_tokens, target_tokens, target_length):
         feed_dict = {}

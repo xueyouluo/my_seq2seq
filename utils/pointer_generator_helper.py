@@ -123,7 +123,8 @@ class PointerGeneratorDecoder(tf.contrib.seq2seq.BasicDecoder):
             attn_dists_projected = tf.scatter_nd(indices, alignments, shape)
             
             final_dists = attn_dists_projected + vocab_dists_extended
-            #final_dists = tf.Print(final_dists,[tf.reduce_sum(tf.cast(tf.less_equal(final_dists[0],0),tf.int32))],message='final dist')
+            a = tf.reduce_sum(tf.cast(tf.less_equal(alignments, 0),tf.int32))
+            #final_dists = tf.Print(final_dists,[a, self.source_oov_words, final_dists[0,:10], tf.reduce_sum(tf.cast(tf.less_equal(final_dists,0),tf.int32))],message='final dist')
             # note: sample_ids will contains OOV words
             sample_ids = self._helper.sample(
                 time=time, outputs=final_dists, state=cell_state)
