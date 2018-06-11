@@ -10,8 +10,9 @@ from utils.model_util import create_attention_mechanism, get_cell_list
 from utils.pointer_generator_helper import PointerGeneratorDecoder, PointerGeneratorGreedyEmbeddingHelper, PointerGeneratorBahdanauAttention,PointerGeneratorAttentionWrapper
 
 class PointerGeneratorModel(BasicS2SModel):
-    def __init__(self,sess,config=BasicConfig()):
+    def __init__(self,sess,config=BasicConfig(), summary=True):
         super(PointerGeneratorModel,self).__init__(sess,config)
+        self.summary = summary
 
     def setup_input_placeholders(self):
         # the original input tokens, using the vocab
@@ -63,6 +64,7 @@ class PointerGeneratorModel(BasicS2SModel):
         new_saver.save(self.sess, os.path.join(new_fname,"model.ckpt"), global_step=self.global_step.eval(self.sess))
         self.saver = new_saver
         self.config.checkpoint_dir = new_fname
+        self.setup_summary()
 
     def setup_attention_decoder(self):
         print("setup attention decoder")

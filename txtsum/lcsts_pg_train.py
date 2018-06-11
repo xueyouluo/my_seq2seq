@@ -40,24 +40,24 @@ config.checkpoint_dir = os.path.join(DATA_DIR,"pointer_generator_lstm_pretrain_e
 if not os.path.isdir(config.checkpoint_dir):
     os.mkdir(config.checkpoint_dir)
 config.num_gpus = 1
-config.num_train_steps = 300000
+config.num_train_steps = 400000
 config.optimizer = 'adagrad'
-config.learning_rate = 0.15
+config.learning_rate = 0.0015
 #config.decay_scheme = 'luong10'
 config.max_inference_length = 25
-config.coverage = False
+config.coverage = True
 config.share_vocab = False
 config.src_vocab_file = os.path.join(DATA_DIR,"vocab.txt")
 config.src_pretrained_embedding = os.path.join(DATA_DIR,"pretrained_w2v_50000_glove.txt")
 
-pickle.dump(config, open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
+#pickle.dump(config, open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
 
 with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     #from tensorflow.python import debug as tf_debug
     #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
     #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 
-    model = PointerGeneratorModel(sess, config)
+    model = PointerGeneratorModel(sess, config, summary=False)
     sess.run(tf.global_variables_initializer())
 
     if config.coverage:
@@ -78,7 +78,7 @@ with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     step_time = 0.0
     step_per_show = 10
     step_per_predict = 100
-    step_per_save = 6000
+    step_per_save = 5000
     best_rouge_2f_score = -100000
     rouge_saver = tf.train.Saver(tf.global_variables())
     rouge_dir = config.checkpoint_dir + "/best_rouge"

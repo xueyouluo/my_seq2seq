@@ -35,7 +35,7 @@ if __name__ == "__main__":
     config.decode_cell_type = 'lstm'
     config.batch_size = 128
     config.attention_option = "bahdanau"
-    config.checkpoint_dir = data_dir + "/baseline"
+    config.checkpoint_dir = data_dir + "/baseline_test"
     config.reverse_source = False
     config.optimizer = 'adagrad'
     config.learning_rate = 0.15
@@ -139,8 +139,18 @@ if __name__ == "__main__":
                     avg_step_time, train_ppl))
                 if math.isnan(train_ppl): break
 
-                source,target,predictions = model.eval_one_batch()
-                
+                try:
+                    source,target,predictions = model.eval_one_batch()
+                except tf.errors.OutOfRangeError:
+                    # Finished going through the training dataset.  Go to next epoch.
+                    print("# Finished an epoch, step %d. Perform external evaluation" % global_step)
+                    sess.run(
+                        train_iterator.initializer,
+                        feed_dict={
+                            train_skip_count_placeholder: 0
+                        })
+                    model.save_model()
+                    continue
                 print(''.join([i2w[i] for i in source[0]]))
                 print(''.join([i2w[i] for i in target[0]]))
                 print(''.join([i2w[i] for i in predictions[0]]))

@@ -19,7 +19,7 @@ def padding(batch, max_len):
         padded_tokens.append(tokens + [EOS_ID] * (max_len - len(tokens)))
     return padded_tokens
 
-def batch_preprocess(max_oovs, vocab,  sources, targets = None, max_source_len = 75, max_target_len = 15):
+def batch_preprocess(max_oovs, vocab,  sources, targets = None, max_source_len = 70, max_target_len = 15):
     source_tokens = []
     source_extend_tokens = []
     source_lengths = []

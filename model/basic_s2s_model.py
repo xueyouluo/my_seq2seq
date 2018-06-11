@@ -17,6 +17,7 @@ class BasicS2SModel(object):
         self.train_phase = config.mode == "train"
         self.sess = sess
         self.config = config
+        self.summary = True
         self.build()
 
     def build(self):
@@ -34,7 +35,8 @@ class BasicS2SModel(object):
         if self.train_phase:
             self.setup_training_decode_layer()
             self.setup_train()
-            self.setup_summary()
+            if self.summary:
+                self.setup_summary()
         else:
             self.setup_beam_search()
         self.setup_saver()

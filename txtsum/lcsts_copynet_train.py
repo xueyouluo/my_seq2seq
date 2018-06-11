@@ -10,6 +10,9 @@ from model.config import CopyNetConfig
 from utils.data_util import read_vocab,UNK_ID,EOS_ID,SOS_ID
 from utils.model_util import get_config_proto
 from txtsum.copy_data_utils import get_batch, convert_ids_to_sentences
+from utils.bleu import compute_bleu
+from utils.rouge import rouge
+import pickle
 
 DATA_DIR = "/data/xueyou/textsum/lcsts_0507"
 w2i,i2w = read_vocab(os.path.join(DATA_DIR,'vocab.txt'))
@@ -26,16 +29,24 @@ config.encode_layer_num = 2
 config.decode_layer_num = 4
 config.num_units = 512
 config.embedding_size = 256
-config.encode_cell_type = 'gru'
-config.decode_cell_type = 'gru'
+config.encode_cell_type = 'lstm'
+config.decode_cell_type = 'lstm'
 config.batch_size = 256
-config.checkpoint_dir = os.path.join(DATA_DIR,"copynet_new")
+config.checkpoint_dir = os.path.join(DATA_DIR,"copynet_0604")
+if not os.path.isdir(config.checkpoint_dir):
+    os.mkdir(config.checkpoint_dir)
 config.max_oovs = 200
-config.num_gpus = 2
-config.num_train_steps = 100000
+config.num_gpus = 1
+config.num_train_steps = 300000
 # using Adam, not decay schema
 config.decay_scheme = None 
+config.optimizer = 'adagrad'
+config.learning_rate = 0.15
+config.max_inference_length = 25
 config.src_vocab_file = os.path.join(DATA_DIR,"vocab.txt")
+config.src_pretrained_embedding = os.path.join(DATA_DIR,"pretrained_w2v_50000_glove.txt")
+
+pickle.dump(config, open(os.path.join(config.checkpoint_dir,"config.pkl"),'wb'))
 
 with tf.Session(config=get_config_proto(log_device_placement=False)) as sess:
     model = CopyNet(sess, config)
