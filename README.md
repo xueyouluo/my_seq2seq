@@ -3,6 +3,12 @@ This is a project to learn to implement different s2s model on tensorflow.
 
 > This project is only used for learning, which means it will contain many bugs. I suggest to use nmt project to do experiments and train seq2seq models. You can find it in the reference part.
 
+## Experiments
+
+I am experimenting the copynet and pg on lcsts dataset, you can find the code in the lcsts branch. 
+
+Issues and suggestions are welcomed.
+
 ## Models
 
 The models I have implemented are as following:
